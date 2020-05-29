@@ -634,13 +634,13 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
   3. LocalBroadcastManager.sendBroadcast(Intent)
    - 발신자와 동일한 앱에 있는 수신자에 브로드캐스트를 전송한다
 
-  - 권한으로 브로드캐스트 제한
-   1. 권한을 사용하여 전송
-    - 발신자
+ - 권한으로 브로드캐스트 제한
+  1. 권한을 사용하여 전송
+   - 발신자
 ```java
 sendBroadcast(new Intent("com.example.NOTIFY"), Manifest.permission.SEND_SMS);
 ```
-    - 수신자
+   - 수신자
 ```xml
 <uses-permission android:name="android.permission.SEND_SMS"/>
 ```
@@ -662,7 +662,7 @@ IntentFilter filter = new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
 registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null );
 ```
 
-    - 발신자
+   - 발신자
 ```xml
 <uses-permission android:name="android.permission.SEND_SMS"/>
 ```
