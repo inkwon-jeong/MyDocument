@@ -337,7 +337,7 @@ public class HelloService extends Service {
   - 서비스가 앱 전용이고 클라이언트와 같은 과정으로 실행되는 경우
   - Binder 클래스를 확장하고 그 인스턴스를 onBind()에서 반환하는 방식
 
-  + Service
+  - Service
 ```java
 public class LocalService extends Service {
    // Binder given to clients
@@ -368,7 +368,7 @@ public class LocalService extends Service {
 }
 ```
 
-  + Client
+  - Client
 ```java
 public class BindingActivity extends Activity {
    LocalService mService;
@@ -434,7 +434,7 @@ public class BindingActivity extends Activity {
   - Handler가 Messenger의 기초가 되어 클라이언트와 IBinder를 공유하고 클라이언트는 Message 객체를 사용해 서비스에 명령을 보낼 수 있다
   - Messenger가 모든 요청을 단일 스레드로 큐에 저장(스레드 세이프)
 
-  + Service
+  - Service
 ```java
 public class MessengerService extends Service {
     /**
@@ -482,7 +482,7 @@ public class MessengerService extends Service {
 }
 ```
 
-  + Client
+  - Client
 ```java
 public class MessengerService extends Service {
     /**
@@ -636,16 +636,16 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
 
   - 권한으로 브로드캐스트 제한
    1. 권한을 사용하여 전송
-    + 발신자
+    - 발신자
 ```java
 sendBroadcast(new Intent("com.example.NOTIFY"), Manifest.permission.SEND_SMS);
 ```
-    + 수신자
+    - 수신자
 ```xml
 <uses-permission android:name="android.permission.SEND_SMS"/>
 ```
    2. 권한을 사용하여 수신
-    + 수신자
+    - 수신자
 ```xml
 <!-- Manifest -->
 <receiver android:name=".MyBroadcastReceiver"
@@ -662,7 +662,7 @@ IntentFilter filter = new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
 registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null );
 ```
 
-    + 발신자
+    - 발신자
 ```xml
 <uses-permission android:name="android.permission.SEND_SMS"/>
 ```
