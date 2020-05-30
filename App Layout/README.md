@@ -64,53 +64,36 @@
  - ListView는 뷰를 세로로만 배치할 수 있지만 RecyclerView는 가로/세로/그리드 방향을 모두 지원한다
 
 ### RecyclerView.Adapter
-```java
-public class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
-    private String[] mDataset;
+```kotlin
+class MyAdapter(private val myDataset: Array<String>) :
+        RecyclerView.Adapter<MyAdapter.MyViewHolder>() {
 
     // Provide a reference to the views for each data item
     // Complex data items may need more than one view per item, and
-    // you provide access to all the views for a data item in a view holder
-    public static class MyViewHolder extends RecyclerView.ViewHolder {
-        // each data item is just a string in this case
-        public TextView textView;
-        public MyViewHolder(TextView v) {
-            super(v);
-            textView = v;
-        }
-    }
-
-    // Provide a suitable constructor (depends on the kind of dataset)
-    public MyAdapter(String[] myDataset) {
-        mDataset = myDataset;
-    }
+    // you provide access to all the views for a data item in a view holder.
+    // Each data item is just a string in this case that is shown in a TextView.
+    class MyViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
 
     // Create new views (invoked by the layout manager)
-    @Override
-    public MyAdapter.MyViewHolder onCreateViewHolder(ViewGroup parent,
-                                                   int viewType) {
+    override fun onCreateViewHolder(parent: ViewGroup,
+                                    viewType: Int): MyAdapter.MyViewHolder {
         // create a new view
-        TextView v = (TextView) LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.my_text_view, parent, false);
+        val textView = LayoutInflater.from(parent.context)
+                .inflate(R.layout.my_text_view, parent, false) as TextView
+        // set the view's size, margins, paddings and layout parameters
         ...
-        MyViewHolder vh = new MyViewHolder(v);
-        return vh;
+        return MyViewHolder(textView)
     }
 
     // Replace the contents of a view (invoked by the layout manager)
-    @Override
-    public void onBindViewHolder(MyViewHolder holder, int position) {
+    override fun onBindViewHolder(holder: MyViewHolder, position: Int) {
         // - get element from your dataset at this position
         // - replace the contents of the view with that element
-        holder.textView.setText(mDataset[position]);
-
+        holder.textView.text = myDataset[position]
     }
 
     // Return the size of your dataset (invoked by the layout manager)
-    @Override
-    public int getItemCount() {
-        return mDataset.length;
-    }
+    override fun getItemCount() = myDataset.size
 }
 ```
 
@@ -154,7 +137,7 @@ private class NumberViewHolder(parentView: View) : RecyclerView.ViewHolder(
  - Root Node를 따라 Child Node를 찾아가면서 차례대로 View를 그리게 된다
 
 ### Layout이 그려지는 과정
- - measure() -> onMeasure() -> layout() -> onLayout()
+ - measure() -> onMeasure() -> layout() -> onLayout() -> onDraw()
 
  - measure(widthMeasureSpec: Int, heightMeasureSpec: Int)
   + 뷰의 크기를 알아내기 위해 호출되며, 실제 크기 측정을 위해 onMeasure()를 호출한다

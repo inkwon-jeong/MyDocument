@@ -266,33 +266,29 @@
  - onStartCommand()의 기본 구현을 제공하여 인텐트를 작업 큐로 보내고 onHandleIntent()를 호출한다
 
 
-```java
-public class HelloIntentService extends IntentService {
+```kotlin
+/**
+ * A constructor is required, and must call the super [android.app.IntentService.IntentService]
+ * constructor with a name for the worker thread.
+ */
+class HelloIntentService : IntentService("HelloIntentService") {
 
-  /**
-   * A constructor is required, and must call the super <code><a href="/reference/android/app/IntentService.html#IntentService(java.lang.String)">IntentService(String)</a></code>
-   * constructor with a name for the worker thread.
-   */
-  public HelloIntentService() {
-      super("HelloIntentService");
-  }
+    /**
+     * The IntentService calls this method from the default worker thread with
+     * the intent that started the service. When this method returns, IntentService
+     * stops the service, as appropriate.
+     */
+    override fun onHandleIntent(intent: Intent?) {
+        // Normally we would do some work here, like download a file.
+        // For our sample, we just sleep for 5 seconds.
+        try {
+            Thread.sleep(5000)
+        } catch (e: InterruptedException) {
+            // Restore interrupt status.
+            Thread.currentThread().interrupt()
+        }
 
-  /**
-   * The IntentService calls this method from the default worker thread with
-   * the intent that started the service. When this method returns, IntentService
-   * stops the service, as appropriate.
-   */
-  @Override
-  protected void onHandleIntent(Intent intent) {
-      // Normally we would do some work here, like download a file.
-      // For our sample, we just sleep for 5 seconds.
-      try {
-          Thread.sleep(5000);
-      } catch (InterruptedException e) {
-          // Restore interrupt status.
-          Thread.currentThread().interrupt();
-      }
-  }
+    }
 }
 ```
 
@@ -314,71 +310,67 @@ public class HelloIntentService extends IntentService {
    - 시스템이 onStartCommand() 반환 후에 서비스를 중단하는 경우 서비스를 다시 생성하고 이 서비스에 전달된 마지막 인텐트로 onStartCommand()를 호출한다
 
 
-```java
-public class HelloService extends Service {
-  private Looper serviceLooper;
-  private ServiceHandler serviceHandler;
+```kotlin
+class HelloService : Service() {
 
-  // Handler that receives messages from the thread
-  private final class ServiceHandler extends Handler {
-      public ServiceHandler(Looper looper) {
-          super(looper);
-      }
-      @Override
-      public void handleMessage(Message msg) {
-          // Normally we would do some work here, like download a file.
-          // For our sample, we just sleep for 5 seconds.
-          try {
-              Thread.sleep(5000);
-          } catch (InterruptedException e) {
-              // Restore interrupt status.
-              Thread.currentThread().interrupt();
-          }
-          // Stop the service using the startId, so that we don't stop
-          // the service in the middle of handling another job
-          stopSelf(msg.arg1);
-      }
-  }
+    private var serviceLooper: Looper? = null
+    private var serviceHandler: ServiceHandler? = null
 
-  @Override
-  public void onCreate() {
-    // Start up the thread running the service. Note that we create a
-    // separate thread because the service normally runs in the process's
-    // main thread, which we don't want to block. We also make it
-    // background priority so CPU-intensive work doesn't disrupt our UI.
-    HandlerThread thread = new HandlerThread("ServiceStartArguments",
-            Process.THREAD_PRIORITY_BACKGROUND);
-    thread.start();
+    // Handler that receives messages from the thread
+    private inner class ServiceHandler(looper: Looper) : Handler(looper) {
 
-    // Get the HandlerThread's Looper and use it for our Handler
-    serviceLooper = thread.getLooper();
-    serviceHandler = new ServiceHandler(serviceLooper);
-  }
+        override fun handleMessage(msg: Message) {
+            // Normally we would do some work here, like download a file.
+            // For our sample, we just sleep for 5 seconds.
+            try {
+                Thread.sleep(5000)
+            } catch (e: InterruptedException) {
+                // Restore interrupt status.
+                Thread.currentThread().interrupt()
+            }
 
-  @Override
-  public int onStartCommand(Intent intent, int flags, int startId) {
-      Toast.makeText(this, "service starting", Toast.LENGTH_SHORT).show();
+            // Stop the service using the startId, so that we don't stop
+            // the service in the middle of handling another job
+            stopSelf(msg.arg1)
+        }
+    }
 
-      // For each start request, send a message to start a job and deliver the
-      // start ID so we know which request we're stopping when we finish the job
-      Message msg = serviceHandler.obtainMessage();
-      msg.arg1 = startId;
-      serviceHandler.sendMessage(msg);
+    override fun onCreate() {
+        // Start up the thread running the service.  Note that we create a
+        // separate thread because the service normally runs in the process's
+        // main thread, which we don't want to block.  We also make it
+        // background priority so CPU-intensive work will not disrupt our UI.
+        HandlerThread("ServiceStartArguments", Process.THREAD_PRIORITY_BACKGROUND).apply {
+            start()
 
-      // If we get killed, after returning from here, restart
-      return START_STICKY;
-  }
+            // Get the HandlerThread's Looper and use it for our Handler
+            serviceLooper = looper
+            serviceHandler = ServiceHandler(looper)
+        }
+    }
 
-  @Override
-  public IBinder onBind(Intent intent) {
-      // We don't provide binding, so return null
-      return null;
-  }
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        Toast.makeText(this, "service starting", Toast.LENGTH_SHORT).show()
 
-  @Override
-  public void onDestroy() {
-    Toast.makeText(this, "service done", Toast.LENGTH_SHORT).show();
-  }
+        // For each start request, send a message to start a job and deliver the
+        // start ID so we know which request we're stopping when we finish the job
+        serviceHandler?.obtainMessage()?.also { msg ->
+            msg.arg1 = startId
+            serviceHandler?.sendMessage(msg)
+        }
+
+        // If we get killed, after returning from here, restart
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent): IBinder? {
+        // We don't provide binding, so return null
+        return null
+    }
+
+    override fun onDestroy() {
+        Toast.makeText(this, "service done", Toast.LENGTH_SHORT).show()
+    }
 }
 ```
 
@@ -389,93 +381,85 @@ public class HelloService extends Service {
   - Binder 클래스를 확장하고 그 인스턴스를 onBind()에서 반환하는 방식
 
   - Service
-```java
-public class LocalService extends Service {
-   // Binder given to clients
-   private final IBinder binder = new LocalBinder();
-   // Random number generator
-   private final Random mGenerator = new Random();
+```kotlin
+class LocalService : Service() {
+    // Binder given to clients
+    private val binder = LocalBinder()
 
-   /**
-    * Class used for the client Binder.  Because we know this service always
-    * runs in the same process as its clients, we don't need to deal with IPC.
-    */
-   public class LocalBinder extends Binder {
-       LocalService getService() {
-           // Return this instance of LocalService so clients can call public methods
-           return LocalService.this;
-       }
-   }
+    // Random number generator
+    private val mGenerator = Random()
 
-   @Override
-   public IBinder onBind(Intent intent) {
-       return binder;
-   }
+    /** method for clients  */
+    val randomNumber: Int
+        get() = mGenerator.nextInt(100)
 
-   /** method for clients */
-   public int getRandomNumber() {
-     return mGenerator.nextInt(100);
-   }
+    /**
+     * Class used for the client Binder.  Because we know this service always
+     * runs in the same process as its clients, we don't need to deal with IPC.
+     */
+    inner class LocalBinder : Binder() {
+        // Return this instance of LocalService so clients can call public methods
+        fun getService(): LocalService = this@LocalService
+    }
+
+    override fun onBind(intent: Intent): IBinder {
+        return binder
+    }
 }
 ```
 
 
   - Client
-```java
-public class BindingActivity extends Activity {
-   LocalService mService;
-   boolean mBound = false;
+```kotlin
+class BindingActivity : Activity() {
+    private lateinit var mService: LocalService
+    private var mBound: Boolean = false
 
-   @Override
-   protected void onCreate(Bundle savedInstanceState) {
-       super.onCreate(savedInstanceState);
-       setContentView(R.layout.main);
-   }
+    /** Defines callbacks for service binding, passed to bindService()  */
+    private val connection = object : ServiceConnection {
 
-   @Override
-   protected void onStart() {
-       super.onStart();
-       // Bind to LocalService
-       Intent intent = new Intent(this, LocalService.class);
-       bindService(intent, connection, Context.BIND_AUTO_CREATE);
-   }
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            val binder = service as LocalService.LocalBinder
+            mService = binder.getService()
+            mBound = true
+        }
 
-   @Override
-   protected void onStop() {
-       super.onStop();
-       unbindService(connection);
-       mBound = false;
-   }
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            mBound = false
+        }
+    }
 
-   /** Called when a button is clicked (the button in the layout file attaches to
-     * this method with the android:onClick attribute) */
-   public void onButtonClick(View v) {
-       if (mBound) {
-           // Call a method from the LocalService.
-           // However, if this call were something that might hang, then this request should
-           // occur in a separate thread to avoid slowing down the activity performance.
-           int num = mService.getRandomNumber();
-           Toast.makeText(this, "number: " + num, Toast.LENGTH_SHORT).show();
-       }
-   }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.main)
+    }
 
-   /** Defines callbacks for service binding, passed to bindService() */
-   private ServiceConnection connection = new ServiceConnection() {
+    override fun onStart() {
+        super.onStart()
+        // Bind to LocalService
+        Intent(this, LocalService::class.java).also { intent ->
+            bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
+    }
 
-       @Override
-       public void onServiceConnected(ComponentName className,
-               IBinder service) {
-           // We've bound to LocalService, cast the IBinder and get LocalService instance
-           LocalBinder binder = (LocalBinder) service;
-           mService = binder.getService();
-           mBound = true;
-       }
+    override fun onStop() {
+        super.onStop()
+        unbindService(connection)
+        mBound = false
+    }
 
-       @Override
-       public void onServiceDisconnected(ComponentName arg0) {
-           mBound = false;
-       }
-   };
+    /** Called when a button is clicked (the button in the layout file attaches to
+     * this method with the android:onClick attribute)  */
+    fun onButtonClick(v: View) {
+        if (mBound) {
+            // Call a method from the LocalService.
+            // However, if this call were something that might hang, then this request should
+            // occur in a separate thread to avoid slowing down the activity performance.
+            val num: Int = mService.randomNumber
+            Toast.makeText(this, "number: $num", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
 ```
 
@@ -489,98 +473,110 @@ public class BindingActivity extends Activity {
 
 
   - Service
-```java
-public class MessengerService extends Service {
+```kotlin
+/** Command to the service to display a message  */
+private const val MSG_SAY_HELLO = 1
+
+class MessengerService : Service() {
+
     /**
-     * Command to the service to display a message
+     * Target we publish for clients to send messages to IncomingHandler.
      */
-    static final int MSG_SAY_HELLO = 1;
+    private lateinit var mMessenger: Messenger
 
     /**
      * Handler of incoming messages from clients.
      */
-    static class IncomingHandler extends Handler {
-        private Context applicationContext;
-
-        IncomingHandler(Context context) {
-            applicationContext = context.getApplicationContext();
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case MSG_SAY_HELLO:
-                    Toast.makeText(applicationContext, "hello!", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    super.handleMessage(msg);
+    internal class IncomingHandler(
+            context: Context,
+            private val applicationContext: Context = context.applicationContext
+    ) : Handler() {
+        override fun handleMessage(msg: Message) {
+            when (msg.what) {
+                MSG_SAY_HELLO ->
+                    Toast.makeText(applicationContext, "hello!", Toast.LENGTH_SHORT).show()
+                else -> super.handleMessage(msg)
             }
         }
     }
 
     /**
-     * Target we publish for clients to send messages to IncomingHandler.
-     */
-    Messenger mMessenger;
-
-    /**
      * When binding to the service, we return an interface to our messenger
      * for sending messages to the service.
      */
-    @Override
-    public IBinder onBind(Intent intent) {
-        Toast.makeText(getApplicationContext(), "binding", Toast.LENGTH_SHORT).show();
-        mMessenger = new Messenger(new IncomingHandler(this));
-        return mMessenger.getBinder();
+    override fun onBind(intent: Intent): IBinder? {
+        Toast.makeText(applicationContext, "binding", Toast.LENGTH_SHORT).show()
+        mMessenger = Messenger(IncomingHandler(this))
+        return mMessenger.binder
     }
 }
 ```
 
 
   - Client
-```java
-public class MessengerService extends Service {
-    /**
-     * Command to the service to display a message
-     */
-    static final int MSG_SAY_HELLO = 1;
+```kotlin
+class ActivityMessenger : Activity() {
+    /** Messenger for communicating with the service.  */
+    private var mService: Messenger? = null
+
+    /** Flag indicating whether we have called bind on the service.  */
+    private var bound: Boolean = false
 
     /**
-     * Handler of incoming messages from clients.
+     * Class for interacting with the main interface of the service.
      */
-    static class IncomingHandler extends Handler {
-        private Context applicationContext;
+    private val mConnection = object : ServiceConnection {
 
-        IncomingHandler(Context context) {
-            applicationContext = context.getApplicationContext();
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            // This is called when the connection with the service has been
+            // established, giving us the object we can use to
+            // interact with the service.  We are communicating with the
+            // service using a Messenger, so here we get a client-side
+            // representation of that from the raw IBinder object.
+            mService = Messenger(service)
+            bound = true
         }
 
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case MSG_SAY_HELLO:
-                    Toast.makeText(applicationContext, "hello!", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    super.handleMessage(msg);
-            }
+        override fun onServiceDisconnected(className: ComponentName) {
+            // This is called when the connection with the service has been
+            // unexpectedly disconnected -- that is, its process crashed.
+            mService = null
+            bound = false
         }
     }
 
-    /**
-     * Target we publish for clients to send messages to IncomingHandler.
-     */
-    Messenger mMessenger;
+    fun sayHello(v: View) {
+        if (!bound) return
+        // Create and send a message to the service, using a supported 'what' value
+        val msg: Message = Message.obtain(null, MSG_SAY_HELLO, 0, 0)
+        try {
+            mService?.send(msg)
+        } catch (e: RemoteException) {
+            e.printStackTrace()
+        }
 
-    /**
-     * When binding to the service, we return an interface to our messenger
-     * for sending messages to the service.
-     */
-    @Override
-    public IBinder onBind(Intent intent) {
-        Toast.makeText(getApplicationContext(), "binding", Toast.LENGTH_SHORT).show();
-        mMessenger = new Messenger(new IncomingHandler(this));
-        return mMessenger.getBinder();
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.main)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Bind to the service
+        Intent(this, MessengerService::class.java).also { intent ->
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Unbind from the service
+        if (bound) {
+            unbindService(mConnection)
+            bound = false
+        }
     }
 }
 ```
@@ -607,30 +603,33 @@ public class MessengerService extends Service {
 ```
 
 
-```java
-public class MyBroadcastReceiver extends BroadcastReceiver {
-    private static final String TAG = "MyBroadcastReceiver";
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Action: " + intent.getAction() + "\n");
-        sb.append("URI: " + intent.toUri(Intent.URI_INTENT_SCHEME).toString() + "\n");
-        String log = sb.toString();
-        Log.d(TAG, log);
-        Toast.makeText(context, log, Toast.LENGTH_LONG).show();
+```kotlin
+private const val TAG = "MyBroadcastReceiver"
+
+class MyBroadcastReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        StringBuilder().apply {
+            append("Action: ${intent.action}\n")
+            append("URI: ${intent.toUri(Intent.URI_INTENT_SCHEME)}\n")
+            toString().also { log ->
+                Log.d(TAG, log)
+                Toast.makeText(context, log, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }
 ```
 
 
 ###Context
-```java
-BroadcastReceiver br = new MyBroadcastReceiver();
+```kotlin
+val br: BroadcastReceiver = MyBroadcastReceiver()
 
-IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-filter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-this.registerReceiver(br, filter);
-this.unregisterReceiver(br);
+val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION).apply {
+    addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+}
+registerReceiver(br, filter)
 ```
 
 
@@ -641,42 +640,35 @@ this.unregisterReceiver(br);
 
 
  - 브로드캐스트 리시버에서 백그라운드 스레드 시작하려면 goAsync()를 호출하거나 JobScheduler를 사용하여 수신자의 JobService를 예약해야 한다
-```java
-public class MyBroadcastReceiver extends BroadcastReceiver {
-    private static final String TAG = "MyBroadcastReceiver";
+```kotlin
+private const val TAG = "MyBroadcastReceiver"
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        final PendingResult pendingResult = goAsync();
-        Task asyncTask = new Task(pendingResult, intent);
-        asyncTask.execute();
+class MyBroadcastReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val pendingResult: PendingResult = goAsync()
+        val asyncTask = Task(pendingResult, intent)
+        asyncTask.execute()
     }
 
-    private static class Task extends AsyncTask<String, Integer, String> {
+    private class Task(
+            private val pendingResult: PendingResult,
+            private val intent: Intent
+    ) : AsyncTask<String, Int, String>() {
 
-        private final PendingResult pendingResult;
-        private final Intent intent;
-
-        private Task(PendingResult pendingResult, Intent intent) {
-            this.pendingResult = pendingResult;
-            this.intent = intent;
+        override fun doInBackground(vararg params: String?): String {
+            val sb = StringBuilder()
+            sb.append("Action: ${intent.action}\n")
+            sb.append("URI: ${intent.toUri(Intent.URI_INTENT_SCHEME)}\n")
+            return toString().also { log ->
+                Log.d(TAG, log)
+            }
         }
 
-        @Override
-        protected String doInBackground(String... strings) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("Action: " + intent.getAction() + "\n");
-            sb.append("URI: " + intent.toUri(Intent.URI_INTENT_SCHEME).toString() + "\n");
-            String log = sb.toString();
-            Log.d(TAG, log);
-            return log;
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
+        override fun onPostExecute(result: String?) {
+            super.onPostExecute(result)
             // Must call finish() so the BroadcastReceiver can be recycled.
-            pendingResult.finish();
+            pendingResult.finish()
         }
     }
 }
@@ -700,8 +692,8 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
 ### 권한으로 브로드캐스트 제한
  1. 권한을 사용하여 전송
   - 발신자
-```java
-sendBroadcast(new Intent("com.example.NOTIFY"), Manifest.permission.SEND_SMS);
+```kotlin
+sendBroadcast(Intent("com.example.NOTIFY"), Manifest.permission.SEND_SMS)
 ```
   - 수신자
 ```xml
@@ -719,10 +711,10 @@ sendBroadcast(new Intent("com.example.NOTIFY"), Manifest.permission.SEND_SMS);
 </receiver>
 ```
 
-```java
+```kotlin
 // Context
-IntentFilter filter = new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null );
+var filter = IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null )
 ```
 
   - 발신자
