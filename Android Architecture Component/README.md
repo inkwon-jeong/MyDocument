@@ -40,6 +40,7 @@ class MyActivity : AppCompatActivity() {
 ```
 
 ### ViewModel 생명주기
+![viewmodel](./image/viewmodel-lifecycle.png)
  - ViewModel 개체의 범위는 ViewModel을 가져올 때 ViewModelProvider에 전달되는 Lifecycle로 지정된다
  - ViewModel은 범위가 지정된 Lifecycle이 영구적으로 끝날 때까지 메모리에 남아있는다
  - Lifecycle이 영구적으로 끝나면 onCleared() 호출한다
