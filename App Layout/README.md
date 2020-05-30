@@ -157,31 +157,30 @@ private class NumberViewHolder(parentView: View) : RecyclerView.ViewHolder(
  - measure() -> onMeasure() -> layout() -> onLayout()
 
  - measure(widthMeasureSpec: Int, heightMeasureSpec: Int)
-
-  - 뷰의 크기를 알아내기 위해 호출되며, 실제 크기 측정을 위해 onMeasure()를 호출한다
-  - widthMeasureSpec : Parent가 부여한 필요한 가로 공간
-  - heightMeasureSpec : Parent가 부여한 필요한 세로 공간
+  + 뷰의 크기를 알아내기 위해 호출되며, 실제 크기 측정을 위해 onMeasure()를 호출한다
+  + widthMeasureSpec : Parent가 부여한 필요한 가로 공간
+  + heightMeasureSpec : Parent가 부여한 필요한 세로 공간
 
  - onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int)
-  - 실제 뷰의 크기를 측정한다
-  - widthMeasureSpec : Parent가 부여한 필요한 가로 공간
-  - heightMeasureSpec : Parent가 부여한 필요한 세로 공간
+  + 실제 뷰의 크기를 측정한다
+  + widthMeasureSpec : Parent가 부여한 필요한 가로 공간
+  + heightMeasureSpec : Parent가 부여한 필요한 세로 공간
 
  - layout(left: Int, top: Int, right: Int, bottom: Int)
-  - 뷰의 위치를 할당하기 위해 호출되며, 실제 할당을 위해 onLayout()을 호출한다
-  - left : Parent에 대한 왼쪽 포지션
-  - top : Parent에 대한 위쪽 포지션
-  - right : Parent에 대한 오른쪽 포지션
-  - bottom : Parent에 대한 하단 포지션
+  + 뷰의 위치를 할당하기 위해 호출되며, 실제 할당을 위해 onLayout()을 호출한다
+  + left : Parent에 대한 왼쪽 포지션
+  + top : Parent에 대한 위쪽 포지션
+  + right : Parent에 대한 오른쪽 포지션
+  + bottom : Parent에 대한 하단 포지션
 
  - onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int)
-  - 실제 뷰를 할당한다
-  - changed : 새로운 사이즈나 위치인지 맞으면 True 아니면 False
-  - left : Parent에 대한 왼쪽 포지션
-  - top : Parent에 대한 위쪽 포지션
-  - right : Parent에 대한 오른쪽 포지션
-  - bottom : Parent에 대한 하단 포지션
+  + 실제 뷰를 할당한다
+  + changed : 새로운 사이즈나 위치인지 맞으면 True 아니면 False
+  + left : Parent에 대한 왼쪽 포지션
+  + top : Parent에 대한 위쪽 포지션
+  + right : Parent에 대한 오른쪽 포지션
+  + bottom : Parent에 대한 하단 포지션
 
  - onDraw(canvas: Canvas)
-  - 뷰를 그리기 시작한다(Canvas는 모양(도형)을 그리고 Paint는 색, 스타일, 글꼴 등을 정의한다)
-  - canvas : 뷰에서 스스로를 그리는 데 사용한다
+  + 뷰를 그리기 시작한다(Canvas는 모양(도형)을 그리고 Paint는 색, 스타일, 글꼴 등을 정의한다)
+  + canvas : 뷰에서 스스로를 그리는 데 사용한다
