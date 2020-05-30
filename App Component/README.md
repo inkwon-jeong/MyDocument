@@ -231,6 +231,7 @@
 
 
 ### 서비스의 생명주기
+![service](./image/service_lifecycle.png)
  1. onCreate()
   - 시스템은 서비스가 처음 생성되었을 때 호출
   - 서비스가 이미 실행중일 때 호출 X
