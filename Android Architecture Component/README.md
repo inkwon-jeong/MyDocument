@@ -1,6 +1,6 @@
 # 안드로이드 아키텍처 컴포넌트
 
-[!architecture](.image/final-architecture.png)
+![architecture](.image/final-architecture.png)
 
 ## ViewModel
  - UI 컨트롤러(액티비티, 프래그먼트)에 관한 데이터를 제공하고 모델과 커뮤니케이션하기 위한 데이터 처리 비즈니스 로직을 포함한다
