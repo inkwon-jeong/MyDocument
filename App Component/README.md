@@ -724,3 +724,239 @@ registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null )
 ```xml
 <uses-permission android:name="android.permission.SEND_SMS"/>
 ```
+
+## 컨텐츠 프로바이더
+![provider](./image/content_provider.png)
+
+ - 앱과 앱 저장소(파일 시스템, SQLite DB, 웹 등) 사이에서 데이터 접근을 쉽게 하도록 관리한다
+ - 앱 간의 데이터 공유를 위해 사용한다
+
+![interaction](./image/content-provider-interaction.png)
+ - ContentProvider 내의 데이터에 액세스할 때, 앱의 Context에 있는 ContentResolver를 사용하여 ContentProvider와 통신을 주고받는다
+ - ContentResolver 메서드는 영구 저장소의 기본적인 "CRUD"(생성, 검색, 업데이트 및 삭제) 기능을 제공한다
+ - UI에서 ContentProvider에 액세스하기 위한 일반적인 패턴에서는 CursorLoader를 사용하여 백그라운드에서 비동기식 쿼리를 실행한다
+
+### ContentResolver.query()
+ - query(Uri, projection, selection, selectionArgs, sortOrder)
+ - Uri : 데이터를 식별하는 URI(ContentProvider의 권한 + 경로)
+ - projection : 검색된 각 행에 포함되어야 하는 열의 배열
+ - selection : 행을 선택하는 조건
+ - selectionArgs : SELECT 절에 있는 ?자리 표시자를 대체하는 변수
+ - sortOrder : 반환된 Cursor 내에 행이 나타나는 순서
+ - 쿼리 SELECT 조건과 일치하는 행에 대해 쿼리 Projection이 지정한 열을 포함하는 Cursor를 반환한다
+
+### 데이터 검색
+ - ContentProvider에 대한 읽기 권한을 요청한다
+ - ContentProvider에게 쿼리를 보내는 코드를 정의한다
+
+#### 쿼리 구성
+ - SQL 쿼리
+```sql
+SELECT _ID, word, locale FROM words WHERE word = <userinput> ORDER BY word ASC;
+```
+
+ - Code
+```kotlin
+// A "projection" defines the columns that will be returned for each row
+private val mProjection: Array<String> = arrayOf(
+        UserDictionary.Words._ID,    // Contract class constant for the _ID column name
+        UserDictionary.Words.WORD,   // Contract class constant for the word column name
+        UserDictionary.Words.LOCALE  // Contract class constant for the locale column name
+)
+
+// Defines a string to contain the selection clause
+private var selectionClause: String? = null
+
+// Declares an array to contain selection arguments
+private lateinit var selectionArgs: Array<String>
+
+/*
+ * This declares String array to contain the selection arguments.
+ */
+private lateinit var selectionArgs: Array<String>
+
+// Gets a word from the UI
+searchString = searchWord.text.toString()
+
+// Remember to insert code here to check for invalid or malicious input.
+
+// If the word is the empty string, gets everything
+selectionArgs = searchString?.takeIf { it.isNotEmpty() }?.let {
+    selectionClause = "${UserDictionary.Words.WORD} = ?"
+    arrayOf(it)
+} ?: run {
+    selectionClause = null
+    emptyArray<String>()
+}
+
+// Does a query against the table and returns a Cursor object
+mCursor = contentResolver.query(
+        UserDictionary.Words.CONTENT_URI,  // The content URI of the words table
+        projection,                       // The columns to return for each row
+        selectionClause,                  // Either null, or the word the user entered
+        selectionArgs,                    // Either empty, or the string the user entered
+        sortOrder                         // The sort order for the returned rows
+)
+
+// Some providers return null if an error occurs, others throw an exception
+when (mCursor?.count) {
+    null -> {
+        /*
+         * Insert code here to handle the error. Be sure not to use the cursor!
+         * You may want to call android.util.Log.e() to log this error.
+         *
+         */
+    }
+    0 -> {
+        /*
+         * Insert code here to notify the user that the search was unsuccessful. This isn't
+         * necessarily an error. You may want to offer the user the option to insert a new
+         * row, or re-type the search term.
+         */
+    }
+    else -> {
+        // Insert code here to do something with the results
+    }
+}
+```
+
+ - SimpleCursorAdapter로 ListView에 연결
+```kotlin
+// Defines a list of columns to retrieve from the Cursor and load into an output row
+val wordListColumns : Array<String> = arrayOf(
+        UserDictionary.Words.WORD,      // Contract class constant containing the word column name
+        UserDictionary.Words.LOCALE     // Contract class constant containing the locale column name
+)
+
+// Defines a list of View IDs that will receive the Cursor columns for each row
+val wordListItems = intArrayOf(R.id.dictWord, R.id.locale)
+
+// Creates a new SimpleCursorAdapter
+cursorAdapter = SimpleCursorAdapter(
+        applicationContext,             // The application's Context object
+        R.layout.wordlistrow,           // A layout in XML for one row in the ListView
+        mCursor,                        // The result from the query
+        wordListColumns,               // A string array of column names in the cursor
+        wordListItems,                 // An integer array of view IDs in the row layout
+        0                               // Flags (usually none are needed)
+)
+
+// Sets the adapter for the ListView
+wordList.setAdapter(cursorAdapter)
+```
+ - 쿼리 결과에서 데이터 가져오기
+```kotlin
+/*
+* Only executes if the cursor is valid. The User Dictionary Provider returns null if
+* an internal error occurs. Other providers may throw an Exception instead of returning null.
+*/
+mCursor?.apply {
+    // Determine the column index of the column named "word"
+    val index: Int = getColumnIndex(UserDictionary.Words.WORD)
+
+    /*
+     * Moves to the next row in the cursor. Before the first movement in the cursor, the
+     * "row pointer" is -1, and if you try to retrieve data at that position you will get an
+     * exception.
+     */
+    while (moveToNext()) {
+        // Gets the value from the column.
+        newWord = getString(index)
+
+        // Insert code here to process the retrieved word.
+
+        ...
+
+        // end of while loop
+    }
+}
+```
+
+### 데이터 삽입, 업데이트 및 삭제
+
+#### 데이터 삽입
+ - ContentResolver.insert()
+ - ContentProvider에 새로운 행을 삽입하고 해당 열에 대한 콘텐츠 URI를 반환한다
+ - ContentValues 객체에 put()을 이용하여 각 열에 해당하는 값을 넣어준다
+
+```kotlin
+// Defines a new Uri object that receives the result of the insertion
+lateinit var newUri: Uri
+
+// Defines an object to contain the new values to insert
+val newValues = ContentValues().apply {
+    /*
+     * Sets the values of each column and inserts the word. The arguments to the "put"
+     * method are "column name" and "value"
+     */
+    put(UserDictionary.Words.APP_ID, "example.user")
+    put(UserDictionary.Words.LOCALE, "en_US")
+    put(UserDictionary.Words.WORD, "insert")
+    put(UserDictionary.Words.FREQUENCY, "100")
+}
+
+// newUri : content://user_dictionary/words/<id_value>
+newUri = contentResolver.insert(
+        UserDictionary.Words.CONTENT_URI,   // the user dictionary content URI
+        newValues                          // the values to insert
+)
+```
+
+### 데이터 업데이트
+ - ContentResolver.update()
+ - 값은 삽입할 때와 똑같고, SELECT 조건은 쿼리할 때와 같다
+ - 열의 콘텐츠를 삭제하려면, 값을 null로 설정하면 된다
+
+```kotlin
+// Defines an object to contain the updated values
+val updateValues = ContentValues().apply {
+    /*
+     * Sets the updated value and updates the selected words.
+     */
+    putNull(UserDictionary.Words.LOCALE)
+}
+
+// Defines selection criteria for the rows you want to update
+val selectionClause: String = UserDictionary.Words.LOCALE + "LIKE ?"
+val selectionArgs: Array<String> = arrayOf("en_%")
+
+// Defines a variable to contain the number of updated rows
+var rowsUpdated: Int = 0
+
+rowsUpdated = contentResolver.update(
+        UserDictionary.Words.CONTENT_URI,   // the user dictionary content URI
+        updateValues,                      // the columns to update
+        selectionClause,                   // the column to select on
+        selectionArgs                      // the value to compare to
+)
+```
+
+### 데이터 삭제
+ - ContentResolver.delete()
+ - 삭제하고자 하는 행에 대한 SELECT 조건을 지정하면 삭제된 행 수를 반환한다
+
+```kotlin
+// Defines selection criteria for the rows you want to delete
+val selectionClause = "${UserDictionary.Words.LOCALE} LIKE ?"
+val selectionArgs: Array<String> = arrayOf("user")
+
+// Defines a variable to contain the number of rows deleted
+var rowsDeleted: Int = 0
+
+// Deletes the words that match the selection criteria
+rowsDeleted = contentResolver.delete(
+        UserDictionary.Words.CONTENT_URI,   // the user dictionary `content URI
+        selectionClause,                   // the column to select on
+        selectionArgs                      // the value to compare to
+)
+```
+
+### 콘텐츠 프로바이더 권한
+ - ContentProvider 앱은 다른 앱이 본인의 데이터에 액세스하기 위해 필요한 권한을 지정할 수 있다
+ - 기본 읽기 권한 : android.permission.READ_USER_DICTIONARY
+ - 기본 쓰기 권한 : android.permission.WRITE_USER_DICTIONARY
+
+```xml
+<uses-permission android:name="android.permission.READ_USER_DICTIONARY">
+<uses-permission android:name="android.permission.WRITE_USER_DICTIONARY">
+```
