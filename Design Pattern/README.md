@@ -6,7 +6,7 @@
 ![mvc](./image/mvc.png)
 
  - Model : 어플리케이션에서 사용되는 데이터와 그 데이터를 처리하는 부분
- - View : 사용자에서 보여지는 UI 부분
+ - View : 사용자에게 보여지는 UI 부분
  - Controller : 사용자의 입력(Action)을 받고 처리하는 부분
 
 ### 동작
@@ -32,7 +32,7 @@
 ![mvp](./image/mvp.png)
 
  - Model : 어플리케이션에서 사용되는 데이터와 그 데이터를 처리하는 부분
- - View : 사용자에서 보여지는 UI 부분
+ - View : 사용자에게 보여지는 UI 부분
  - Presenter : View에서 요청한 정보로 Model을 가공하여 View에 전달해 주는 부분
 
 ### 동작
@@ -60,7 +60,7 @@
 ![mvvm](./image/mvvm.png)
 
  - Model : 어플리케이션에서 사용되는 데이터와 그 데이터를 처리하는 부분
- - View : 사용자에서 보여지는 UI 부분
+ - View : 사용자에게 보여지는 UI 부분
  - ViewModel : View를 표현하기 위한 Model이자 View를 나타내기 위한 데이터 처리를 하는 부분
 
 ### 동작
