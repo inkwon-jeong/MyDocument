@@ -437,3 +437,105 @@ class Test {
     2. 배열 : 같은 종류(타입)의 여러 데이터를 하나의 집합으로 저장할 수 있는 공간
     3. 구조체 : 서로 관련된 여러 데이터를 종류(타입)에 관계없이 하나의 집합으로 저장할 수 있는 공간
     4. 클래스 : 데이터와 함수의 결합(구조체 + 함수)
+
+## 예외처리
+ - 프로그램 실행 시 발생할 수 있는 예외의 발생에 대비한 코드를 작성하여 프로그램의 비정상 종료를 막고, 정상적인 실행상태를 유지하는 것
+ - 발생한 예외를 처리하지 못하면, 프로그램은 비정상적으로 종료되며 JVM의 예외처리기가 예외의 원인을 화면에 출력한다
+
+### 프로그램 오류
+![exception](./image/exception.jpg)
+ - 오류 : 프로그램이 실행 중 오작동을 하거나 비정상적으로 종료되게 하는 원인
+    - 컴파일 오류 : 컴파일 시에 발생하는 오류
+    - 런타임 오류 : 실행 시에 발생하는 오류
+        - 에러(error) : 프로그램 코드에 의해서 수습될 수 없는 심각한 오류
+        - 예외(exception) : 프로그램 코드에 의해서 수습될 수 있는 다소 미약한 오류
+            - Checked Exception : 사용자의 실수와 같은 외적인 요인에 의해 발생하는 예외(반드시 예외처리를 해야 한다)  
+            ex) FileNotFoundException, ClassNotFoundException, DataFormat Exception 등
+            - Unchecked Exception : 프로그래머의 실수로 발생하는 예외(예외처리를 강제하지 않는다)  
+            ex) IndexOutOfBoundsException, NullPointerException, ClassCastException, ArithmeticException 등
+    - 논리적 오류 : 실행은 되지만, 의도와 다르게 동작하는 것
+
+### try-catch
+```java
+try {
+    // 예외가 발생할 가능성이 있는 코드를 작성한다
+    System.out.println(3);
+    System.out.println(0/0); // ArithmeticException 인스턴스 생성
+    System.out.println(4); // 실행되지 않는다
+} catch(ArithmeticException e) { // 인스턴스 instanceof ArithmeticException -> true 이면 실행
+    // ArithmeticException릏 처리하는 코드를 작성한다
+    e.printStackTrace(); // 예외발생 당시의 호출스택에 있었던 메서드의 정보와 예외 메시지를 화면에 출력한다
+} catch(Exception e) {
+    // ArithmeticException을 제외한 모든 Exception을 처리하는 코드를 작성한다
+    System.out.println("예외 메시지 : " + e.getMessage()); // 발생한 예외 클래스의 저장된 메시지를 출력한다
+}
+```
+ - try 블럭 내에서 예외가 발생한 경우
+    - 발생한 예외에 해당하는 예외 클래스의 인스턴스가 만들어진다
+    - 발생한 예외와 일치하는 catch 블럭이 있는지 확인한다
+        - 첫 번째 catch 블럭부터 차례로 내려간다
+        - catch 블럭의 매개변수의 타입과 생성된 예외 클래스의 인스턴스에 instanceof 연산자를 이용해서 검사한다  
+    - 일치하는 catch 블럭을 찾게 되면(검사결과 true), 블럭 내의 코드를 실행하고 try-catch문을 빠져나가서 다음 코드를 실행한다
+    - 일치하는 catch 블럭을 찾지 못하면(모든 검사결과 false), 예외는 처리되지 못하고 비정상적으로 종료된다
+
+ - try 블럭 내에서 예외가 발생하지 않은 경우
+    - try-catch문을 빠져나가서 다음 코드를 실행한다
+
+### throw
+ - throw를 이용하여 프로그래머가 고의로 예외를 발생시킬 수 있다
+```java
+Exception e = new Exception("고의로 예외 발생시킴");
+throw e;
+```
+
+### throws
+ - 메서드의 선언부에 throws를 사용해서 메서드 내에서 발생할 수 있는 예외를 선언한다
+ - 예외를 메서드의 throws에 선언하는 것은 예외를 처리하는 것이 아니라, 자신을 호출한 메서드에게 예외를 전달하여 예외처리를 떠맡기는 것이다
+ - 이런 식으로 호출스택에 있는 메서드들을 따라 전달되다가 main 메서드에서도 예외가 처리되지 않으면 프로그램이 전체가 종료된다
+``` java
+public static void main(String[] args) throws Exception {
+    method1();
+}
+
+static void method1() throws Exception {
+    method2();
+}
+
+static void method2() throws Exception {
+    throw new Exception();
+}
+```
+
+### finally
+ - 예외의 발생여부에 상관없이 실행되어야할 코드를 포함한다
+```java
+try {
+    // 예외가 발생할 가능성이 있는 코드를 작성한다
+} catch(Exception e) {
+    // 예외처리를 위한 코드를 작성한다
+} finally {
+    // 예외의 발생여부에 관계없이 항상 수행되어야하는 코드를 작성한다
+}
+```
+
+### try-with-resources
+ - 주로 입출력에 사용되는 클래스 중에서는 사용한 후에 꼭 닫아줘야하는 것들이 있다(사용했던 자원을 반납하기 위해서)
+ - 괄호 안에 AutoCloseable를 구현한 객체를 생성하는 문장을 넣으면, try 블럭을 벗어나는 순간 자동적으로 close()가 호출된다
+```java
+try(CloseableResource cr = new CloseableResource()) {
+    cr.work();
+} catch(Exception e) {
+    e.printStackTrace();
+}
+
+class CloseableResource implements AutoCloseable {
+    public void work() {
+        System.out.println("work() 호출됨");
+    }
+
+    @Override
+    public void close() throws Exception {
+        System.out.println("close() 호출됨");
+    }
+}
+```
