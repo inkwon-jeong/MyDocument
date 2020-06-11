@@ -1,15 +1,15 @@
 # 자료구조
- [1. List](#List)
- [2. Stack](#Stack)
- [3. Queue](#Queue)
- [4. Deque](#Deque)
- [5. Set](#Set)
- [6. Map](#Map)
- [7. Tree](#Tree)
- [8. Sorting](#Sorting)
- [9. Searching](#Searching)
+ 1. [List](#List)
+ 2. [Stack](#Stack)
+ 3. [Queue](#Queue)
+ 4. [Deque](#Deque)
+ 5. [Set](#Set)
+ 6. [Map](#Map)
+ 7. [Tree](#Tree)
+ 8. [Sorting](#Sorting)
+ 9. [Searching](#Searching)
 
-## List
+## [List](#자료구조)
  - 순서가 있는 데이터의 집합
  - 데이터의 중복을 허용한다
 
@@ -494,7 +494,7 @@ public class LinkedList<T> implements ListIterator<T> {
 }
 ```
 
-## Stack
+## [Stack](#자료구조)
  - 마지막에 저장한 데이터를 가장 먼저 꺼내게 되는 LIFO(Last In First Out) 구조
  - 활용 예시
     - JVM의 호출 스택
@@ -592,7 +592,7 @@ public class VectorStack<T> implements Stack<T> {
 }
 ```
 
-## Queue
+## [Queue](#자료구조)
  - 처음에 저장한 데이터를 가장 먼저 꺼내게 되는 FIFO(First In First Out) 구조
  - 활용 예시
     - 프로세스 관리
@@ -709,7 +709,7 @@ public class LinkedQueue<T> implements Queue<T> {
 }
 ```
 
-## Deque
+## [Deque](#자료구조)
  - Queue의 변형으로, 양쪽 끝에 추가/삭제가 가능하다
 
 ### Interface
@@ -877,7 +877,7 @@ public class LinkedDeque<T> implements Deque<T> {
  - 인덱스에 해시값을 사용함으로써 모든 데이터를 살피지 않아도 검색, 삽입, 삭제를 빠르게 수행할 수 있다
  - 시간복잡도(검색, 삽입, 삭제) : O(1)
 
-## Set
+## [Set](#자료구조)
  - 순서를 유지하지 않는 데이터의 집합
  - 데이터의 중복을 허용하지 않는다
 
@@ -1105,7 +1105,7 @@ public class HashSet<T> implements Set<T> {
 }
 ```
 
-## Map
+## [Map](#자료구조)
  - 키(key)와 값(value)의 쌍으로 이루어진 데이터의 집합
  - 순서를 유지하지 않는 데이터의 집합
  - 키는 중복을 허용하지 않고, 값은 중복을 허용한다
@@ -1454,8 +1454,8 @@ public class HashMap<K, V> implements Map<K, V> {
 }
 ```
 
-## Tree
+## [Tree](#자료구조)
 
-## Sorting
+## [Sorting](#자료구조)
 
-## Searching
+## [Searching](#자료구조)
