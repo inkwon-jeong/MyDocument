@@ -872,11 +872,6 @@ public class LinkedDeque<T> implements Deque<T> {
 }
 ```
 
-## 해싱(Hashing)
- - 원래 데이터의 값 : 키(key) -> 데이터의 값 : 해시값(hash value) 매핑하는 것
- - 인덱스에 해시값을 사용함으로써 모든 데이터를 살피지 않아도 검색, 삽입, 삭제를 빠르게 수행할 수 있다
- - 시간복잡도(검색, 삽입, 삭제) : O(1)
-
 ## [Set](#자료구조)
  - 순서를 유지하지 않는 데이터의 집합
  - 데이터의 중복을 허용하지 않는다
@@ -1457,5 +1452,224 @@ public class HashMap<K, V> implements Map<K, V> {
 ## [Tree](#자료구조)
 
 ## [Sorting](#자료구조)
+![sort](./image/sort.png)
 
+### 선택정렬
+ 1. 인덱스의 맨 앞에서부터 시작하여, 이를 포함한 그 이후의 배열값 중 가장 작은 값(min)을 찾는다
+ 2. 가장 작은 값(min)을 찾으면, 그 값을 시작한 인덱스의 값(a[i])과 바꿔준다
+```java
+public static <T extends Comparable<? super T>> void selectionSort(T[] a, int start, int end) {
+    for(int i = start; i < end; i++) {
+        int min = i; // 아직 정렬되지 않은 부분에서 가장 작은 요소의 인덱스를 기록한다
+        for(int j = i + 1; j <= end; j++) {
+            if(a[j].compareTo(a[min]) < 0)
+                min = j;
+        }
+        swap(a, i, min); // 아직 정렬되지 않은 부분의 첫 요소와 가장 작은 요소를 교환한다
+    }
+}
+```
+
+### 삽입정렬
+ 1. 두번째 인덱스부터 시작하여, 시작한 인덱스(i)의 값을 별도의 변수(temp)에 저장한다
+ 2. 변수에 저장한 값(temp)을 시작한 인덱스보다 앞에 있는 인덱스의 값(a[j - 1])과 비교한다(역순)
+ 3. temp < a[j - 1], 비교 인덱스의 값을 뒤로 옮기고 계속 진행한다
+ 4. temp > a[j - 1], 비교 인덱스의 뒤에 변수에 저장한 값을 삽입한다
+```java
+public static <T extends Comparable<? super T>> void insertionSort(T[] a, int start, int end) {
+    for(int i = start + 1; i <= end; i++) {
+        int j;
+        T temp = a[i];
+        for(j = i; j > start && a[j - 1].compareTo(temp) > 0; j--) // 시작한 인덱스의 값과 앞에 있는 인덱스의 값을 비교한다
+            a[j] = a[j - 1]; // 비교 인덱스의 값을 뒤로 옮긴다
+        a[j] = temp; // 비교 인덱스의 뒤에 시작한 인덱스의 값을 삽입한다
+    }
+}
+```
+
+### 버블정렬
+ 1. 마지막 인덱스부터 시작하여, 현재 인덱스 값(a[i])과 바로 앞의 인덱스 값(a[i - 1])을 비교한다(역순)
+ 2. a[i - 1] > a[i], 현재 인덱스 값과 바꿔주고 변수(k)에 현재 인덱스의 값을 저장한다
+ 3. 변수(k)의 값이 n-1이면 정렬을 마친다
+
+```java
+public static <T extends Comparable<? super T>> void bubbleSort(T[] a, int start, int end) {
+    int k = start; // k보다 앞쪽은 정렬을 마친 상태
+    while(k < end) {
+        int last = end; // 마지막으로 요소를 교환한 위치
+        for(int i = end; i > k; i--) {
+            if(a[i - 1].compareTo(a[i]) > 0) {
+                swap(a, i - 1, i);
+                last = i;
+            }
+        }
+        k = last;
+    }
+}
+```
+
+### 쉘정렬
+ - 삽입 정렬이 어느 정도 정렬 되어 있는 배열에 대해서는 대단히 빠르다는 점을 이용해 만든 알고리즘
+ 1. gap 값으로 간격을 주어 부분 리스트를 만들고, 각 부분 리스트를 삽입 정렬을 이용하여 정렬한다
+ 2. gap 값이 1이 될 때까지 반복한다
+
+```java
+public static <T extends Comparable<? super T>> void shellSort(T[] a, int start, int end) {
+    int h = 1; // gap
+    while(h < (end - start + 1) / 9)
+        h = h * 3 + 1; // h의 초기값 구하기
+
+    while(h > 0) {
+        for (int i = h; i <= end; i++) { // 부분리스트를 삽입정렬을 이용하여 정렬한다
+            int j;
+            T temp = a[i];
+            for (j = i - h; j >= start && a[j].compareTo(temp) > 0; j -= h)
+                a[j + h] = a[j];
+            a[j + h] = temp;
+        }
+        h /= 3;
+    }
+}
+```
+
+### 합병정렬
+ - 분할정복 알고리즘으로 설계된 정렬방법
+ 1. 현재 배열을 반으로 나눈다
+ 2. 배열의 크가가 0이나 1이 될 때까지 반복한다
+ 3. 왼쪽 배열을 버퍼에 담는다
+ 4. 버퍼와 오른쪽 배열을 비교하여 더 작은 값을 배열에 담는다
+ 5. 버퍼의 값이 남아있을 경우 나머지 값을 배열에 담는다
+```java
+public static <T extends Comparable<? super T>> void mergeSort(T[] a, int start, int end) {
+    @SuppressWarnings("unchecked")
+    T[] buffer = (T[]) new Comparable[(end - start + 1)];
+    mergeSort(a, buffer, start, end);
+}
+
+private static <T extends Comparable<? super T>> void mergeSort(T[] a, T[] buffer, int start, int end) {
+    if(start < end) {
+        int center = (start + end) / 2;
+
+        int p = 0; // 버퍼(왼쪽 배열)의 길이
+        int j = 0; // 버퍼 인덱스
+        int i = start; // 오른쪽 배열 인덱스
+        int k = start; // 배열 인덱스
+
+        mergeSort(a, buffer, start, center);
+        mergeSort(a, buffer, center + 1, end);
+
+        // 왼쪽 배열을 버퍼에 담는다
+        while(i <= center)
+            buffer[p++] = a[i++];
+
+        // 왼쪽 배열과 오른쪽 배열을 비교하여 더 작은 값을 배열에 담는다
+        while(i <= end && j < p)
+            a[k++] = (buffer[j].compareTo(a[i]) <= 0) ? buffer[j++] : a[i++];
+
+        // 버퍼(왼쪽 배열)의 요소가 남아있을 경우 나머지 요소를 배열에 담는다
+        while (j < p)
+            a[k++] = buffer[j++];
+    }
+}
+```
+
+### 퀵정렬
+ - 분할정복 알고리즘으로 설계된 정렬방법
+ - pivot을 기준으로 작은 값은 왼쪽, 큰 값은 오른쪽으로 옮기는 방식이다
+ 1. 배열의 처음, 중간, 마지막 값을 정렬하고 중간값을 pivot으로 설정한다
+ 2. 배열의 왼쪽 시작 인덱스를 pl, 배열의 오른쪽 시작 인덱스를 pr로 지정한다
+ 3. pivot보다 큰 값이 나올 때까지 pl을 증가시키고, pivot보다 작은 값이 나올 때까지 pr을 감소시킨다
+ 4. pl < pr일 때, pl 인덱스의 값과, pr 인덱스의 값을 바꾼다
+ 5. pivot의 왼쪽에 있는 배열을 퀵정렬하고, pivot의 오른쪽에 있는 배열을 퀵정렬한다
+
+```java
+private static <T extends Comparable<? super T>> int sort3Elem(T[] x, int a, int b, int c) {
+    if (x[b].compareTo(x[a]) < 0)
+        swap(x, b, a);
+    if (x[c].compareTo(x[b]) < 0)
+        swap(x, c, b);
+    if (x[b].compareTo(x[a]) < 0)
+        swap(x, b, a);
+    return b;
+}
+
+private static final int MIN_SIZE = 5;
+
+private static <T extends Comparable<? super T>> void quickSort(T[] a, int start, int end) {
+    if(end - start + 1 < MIN_SIZE)
+        insertionSort(a, start, end);
+    else {
+        int pivotIndex = partition(a, start, end);
+
+        quickSort(a, start, pivotIndex - 1);
+        quickSort(a, pivotIndex + 1, end);
+    }
+}
+
+private static <T extends Comparable<? super T>> int partition(T[] a, int start, int end) {
+    int m = sort3Elem(a, start, (start + end) / 2, end);
+    T pivot = a[m];
+
+    swap(a, m, end - 1);
+    int pl = start + 1;
+    int pr = end - 2;
+
+    while(pl < pr) {
+        while(a[pl].compareTo(pivot) < 0) pl++;
+        while(a[pr].compareTo(pivot) > 0) pr--;
+        if(pl < pr)
+            swap(a, pl++, pr--);
+    }
+
+    swap(a, pl, end - 1);
+    return pl;
+}
+```
 ## [Searching](#자료구조)
+
+### 선형검색
+ - 무작위로 저장된 데이터의 집합을 검색한다
+ - 데이터를 순차적으로 검색해야 한다
+ - 시간복잡도 : O(n)
+```java
+public static <T extends Comparable<? super T>> int seqSearch(T[] a, T key) {
+    for (int i = 0; i < a.length; i++) {
+        if (a[i].equals(key))
+            return i;
+    }
+    return -1;
+}
+```
+
+### 이진검색
+ - 정렬된 데이터의 집합을 검색한다
+ - 검색하는 값을 배열의 중간값과 비교하여, 작으면 좌측 배열 크면 우측배열로 이동하여 검색한다
+ - 시간복잡도 : O(log n)
+```java
+public static <T extends Comparable<? super T>> int binSearch(T[] a, T key) {
+    int start = 0;
+    int end = a.length - 1;
+
+    while (start <= end) {
+        int mid = (start + end) / 2;
+
+        if (a[mid].compareTo(key) == 0)
+            return mid;
+        else if (a[mid].compareTo(key) < 0)
+            start = mid + 1;
+        else if (a[mid].compareTo(key) > 0)
+            end = mid - 1;
+    }
+
+    return -1;
+}
+```
+
+### 해싱(Hashing)
+ - 원래 데이터의 값 : 키(key) -> 데이터의 값 : 해시값(hash value) 매핑하는 것
+ - 인덱스에 해시값을 사용함으로써 모든 데이터를 살피지 않아도 검색, 삽입, 삭제를 빠르게 수행할 수 있다
+ - 시간복잡도(검색, 삽입, 삭제) : O(1)
+ - 체인법
+    - 같은 해시 값의 데이터를 선형 리스트로 연결하는 방법
+ - 오픈주소법
+    - 데이터를 위한 해시값이 충돌할때 재해시하는 방법
