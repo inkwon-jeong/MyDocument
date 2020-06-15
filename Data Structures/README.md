@@ -1450,6 +1450,442 @@ public class HashMap<K, V> implements Map<K, V> {
 ```
 
 ## [Tree](#자료구조)
+![tree](./image/tree.png)
+ - 노드로 이루어진 비선형 자료구조로 계층적 관계를 표현하는데 사용한다
+ - 사이클이 없는 하나의 연결 그래프
+ - 트리는 하나의 루트 노드를 갖는다
+ - 노드는 0개 이상의 자식 노드를 갖는다
+
+### 이진 탐색 트리(Binary Search Tree)
+ - 이진 트리 기반의 탐색을 위한 자료구조
+ - 모든 노드의 키는 유일하다
+ - 왼쪽 서브 트리의 키들은 루트의 키보다 작다
+ - 오른쪽 서브 트리의 키들은 루트의 키보다 크다
+
+#### AVL 트리
+ - 이진 트리 높이의 균형을 유지하는 이진 탐색 트리
+ - 트리의 두 서브트리(왼쪽, 오른쪽)의 높이 차가 최대 1을 넘지 않는다
+
+```java
+public class AVLTree<T extends Comparable<? super T>>
+        extends BinarySearchTree<T> {
+
+    public AVLTree() {
+        super();
+    }
+
+    public AVLTree(T rootEntry) {
+        super(rootEntry);
+    }
+
+    private BinaryNode rotateRight(BinaryNode rootNode) {
+        BinaryNode leftChild = rootNode.getLeftChild();
+        rootNode.setLeftChild(leftChild.getRightChild());
+        leftChild.setRightChild(rootNode);
+        return leftChild;
+    }
+
+    private BinaryNode rotateLeft(BinaryNode rootNode) {
+        BinaryNode rightChild = rootNode.getRightChild();
+        rootNode.setRightChild(rightChild.getLeftChild());
+        rightChild.setLeftChild(rootNode);
+        return rightChild;
+    }
+
+    private BinaryNode rotateRightLeft(BinaryNode rootNode) {
+        BinaryNode rightChild = rootNode.getRightChild();
+        rootNode.setRightChild(rotateRight(rightChild));
+        return rotateLeft(rootNode);
+    }
+
+    private BinaryNode rotateLeftRight(BinaryNode rootNode) {
+        BinaryNode leftChild = rootNode.getLeftChild();
+        rootNode.setLeftChild(rotateLeft(leftChild));
+        return rotateRight(rootNode);
+    }
+
+    private BinaryNode rebalance(BinaryNode rootNode) {
+        if(rootNode != null) {
+            int heightDifference = getHeightDifference(rootNode);
+            if (heightDifference > 1) {
+                if (getHeightDifference(rootNode.getLeftChild()) > 0)
+                    rootNode = rotateRight(rootNode);
+                else
+                    rootNode = rotateLeftRight(rootNode);
+            } else if (heightDifference < -1) {
+                if (getHeightDifference(rootNode.getRightChild()) < 0)
+                    rootNode = rotateLeft(rootNode);
+                else
+                    rootNode = rotateRightLeft(rootNode);
+            }
+        }
+        return rootNode;
+    }
+
+    private int getHeightDifference(BinaryNode rootNode) {
+        int leftHeight = rootNode.hasLeftChild() ? rootNode.getLeftChild().getHeight() : 0;
+        int rightHeight = rootNode.hasRightChild() ? rootNode.getRightChild().getHeight() : 0;
+
+        return leftHeight - rightHeight;
+    }
+
+    @Override
+    public T add(T newEntry) {
+        T result = null;
+        if(isEmpty())
+            setRootNode(new BinaryNode(newEntry));
+        else {
+            result = addEntry(getRootNode(), newEntry);
+            setRootNode(rebalance(getRootNode()));
+        }
+
+        return result;
+    }
+
+    protected T addEntry(BinaryNode rootNode, T newEntry) {
+        assert rootNode != null;
+        T result = null;
+        int comparison = newEntry.compareTo(rootNode.getData());
+        if(comparison == 0) {
+            result = rootNode.getData();
+            rootNode.setData(newEntry);
+        } else if(comparison < 0) {
+            if(rootNode.hasLeftChild()) {
+                BinaryNode leftChild = rootNode.getLeftChild();
+                result = addEntry(leftChild, newEntry);
+                rootNode.setLeftChild(rebalance(leftChild));
+            } else
+                rootNode.setLeftChild(new BinaryNode(newEntry));
+        } else {
+            if(rootNode.hasRightChild()) {
+                BinaryNode rightChild = rootNode.getRightChild();
+                result = addEntry(rightChild, newEntry);
+                rootNode.setRightChild(rebalance(rightChild));
+            } else
+                rootNode.setRightChild(new BinaryNode(newEntry));
+        }
+        return result;
+    }
+
+    @Override
+    public T remove(T entry) {
+        ReturnObject oldEntry = new ReturnObject(null);
+        BinaryNode newRoot = removeEntry(getRootNode(), entry, oldEntry);
+        setRootNode(newRoot);
+        return oldEntry.getData();
+    }
+
+    protected BinaryNode removeEntry(BinaryNode rootNode, T entry, ReturnObject oldEntry) {
+        if(rootNode != null) {
+            T rootData = rootNode.getData();
+            int comparison = entry.compareTo(rootData);
+            if(comparison == 0) {
+                oldEntry.setData(rootData);
+                rootNode = removeFromRoot(rootNode);
+            } else if(comparison < 0) {
+                BinaryNode leftChild = rootNode.getLeftChild();
+                rootNode.setLeftChild(removeEntry(leftChild, entry, oldEntry));
+            } else {
+                BinaryNode rightChild = rootNode.getRightChild();
+                rootNode.setRightChild(removeEntry(rightChild, entry, oldEntry));
+            }
+        }
+        return rebalance(rootNode);
+    }
+
+    private BinaryNode removeFromRoot(BinaryNode rootNode) {
+        if(rootNode.hasRightChild() && rootNode.hasLeftChild()) {
+            BinaryNode leftChild = rootNode.getLeftChild();
+            BinaryNode largestNode = findLargest(leftChild);
+
+            rootNode.setData(largestNode.getData());
+            rootNode.setLeftChild(removeLargest(leftChild));
+        } else if(rootNode.hasRightChild())
+            rootNode = rootNode.getRightChild();
+        else
+            rootNode = rootNode.getLeftChild();
+        return rootNode;
+    }
+
+    private BinaryNode findLargest(BinaryNode rootNode) {
+        if(rootNode.hasRightChild())
+            rootNode = findLargest(rootNode.getRightChild());
+        return rootNode;
+    }
+
+    private BinaryNode removeLargest(BinaryNode rootNode) {
+        if(rootNode.hasRightChild()) {
+            BinaryNode rightChild = rootNode.getRightChild();
+            rootNode.setRightChild(removeLargest(rightChild));
+        } else
+            rootNode = rootNode.getLeftChild();
+        return rootNode;
+    }
+}
+```
+
+### B-트리(B-Tree)
+ - 자식 노드가 m개(2개 이상)인 트리
+ - B-트리는 공백이거나, 높이가 1 이상인 m-원 탐색 트리
+ - 루트는 0 또는 2에서 m개 사이의 서브트리를 가진다
+ - 루트를 제외한 모든 내부 노드는 최소 m / 2개, 최대 m개의 서브트리를 가진다
+ - 리프가 아닌 노드에 있는 키 값의 수는 그 노드의 서브트리 수 보다 하나 적다
+ - 모든 리프는 같은 레벨이다
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public class BTree<T extends Comparable<? super T>> {
+
+    private final int M;
+    private final int mid;
+    private final int min;
+    private BTreeNode root;
+
+    public BTree(int M) {
+        this.M = M;
+        mid = M / 2;
+        min = (int) Math.ceil(((double) M / 2)) - 1;
+    }
+
+    public void inorder() {
+        inorder(root);
+    }
+
+    private void inorder(BTreeNode p) {
+        if (!p.isLeaf()) {
+            for (int i = 0; i < p.length(); i++) {
+                inorder(p.getPointer(i));
+                System.out.print(p.getKey(i) + " ");
+            }
+            inorder(p.getPointer(p.length()));
+        } else {
+            for (int i = 0; i < p.length(); i++)
+                System.out.print(p.getKey(i) + " ");
+        }
+    }
+
+    private int findIndex(BTreeNode p, T newKey) {
+        int index = p.length();
+        for (int i = 0; i < p.length(); i++) {
+            if (newKey.compareTo(p.getKey(i)) <= 0) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
+    private BTreeNode splitBT(BTreeNode p) {
+        BTreeNode parent;
+        BTreeNode q = new BTreeNode();
+
+        for (int i = mid + 1; i < M; i++) { // 중간값보다 큰값 새 노드에 담기
+            q.addKey(p.removeKey(mid + 1));
+        }
+
+        T centerKey = p.removeKey(mid); // 중간값
+        if (p.isRoot()) { // 루트노드일 때
+            parent = new BTreeNode();
+            int index = findIndex(parent, centerKey);
+            parent.addKey(centerKey, index);
+            parent.addPointer(p);
+            parent.addPointer(q);
+            p.setParent(parent);
+            q.setParent(parent);
+            root = parent;
+        } else { // 내부노드 또는 리프일 때
+            parent = p.getParent();
+            int index = findIndex(parent, centerKey);
+            parent.addKey(centerKey, index);
+            parent.addPointer(q, index + 1);
+            q.setParent(parent);
+            if (parent.isOverflow()) { // 부모노드가 overflow일 때
+                BTreeNode newParent = splitBT(parent);
+                for (int i = mid; i < M; i++) { // 포인터 재배치 및 부모노드 재조정
+                    BTreeNode newChild = parent.removePointer(mid + 1);
+                    newChild.setParent(newParent);
+                    newParent.addPointer(newChild);
+                }
+            }
+        }
+        return q;
+    }
+
+    public boolean searchBT(T searchKey) {
+        if(root == null) {
+            return false;
+        } else {
+            return searchBT(root, searchKey);
+        }
+    }
+
+    private boolean searchBT(BTreeNode p, T searchKey) {
+        int index = findIndex(p, searchKey);
+        if (index < p.length() && p.getKey(index).equals(searchKey)) {
+            return true;
+        } else if(!p.isLeaf()) {
+            return searchBT(p.getPointer(index), searchKey);
+        } else {
+            return false;
+        }
+    }
+
+    private void insertBT(BTreeNode p, T newKey) {
+        int index = findIndex(p, newKey);
+        if (p.isLeaf()) { // 리프노드일 때
+            p.addKey(newKey, index);
+            if (p.isOverflow()) { // 리프노드에 키를 삽입하여 오버플로우가 되었을 때
+                splitBT(p);
+            }
+        } else { // 리프노드가 아닐 때
+            insertBT(p.getPointer(index), newKey);
+        }
+    }
+
+    public void insertBT(T newKey) {
+        if (root == null) {
+            root = new BTreeNode();
+            root.addKey(newKey);
+        } else {
+            insertBT(root, newKey);
+        }
+    }
+
+    private BTreeNode findNextNode(BTreeNode p, int index) { // 후행키를 갖고 있는 노드 찾기
+        p = p.getPointer(index + 1);
+        while (!p.isLeaf()) {
+            p = p.getPointer(0);
+        }
+        return p;
+    }
+
+    private BTreeNode findSibling(BTreeNode p) { // 키를 최소값보다 많이 가진 형제노드 찾기
+        BTreeNode sibling = null;
+        BTreeNode parent = p.getParent();
+        if (parent != null) {
+            int index = parent.getPointerIndex(p);
+            if (index - 1 >= 0 && parent.getPointer(index - 1).length() > min) // 왼쪽 형제
+                sibling = parent.getPointer(index - 1);
+            else if (index + 1 <= parent.length() && parent.getPointer(index + 1).length() > min) // 오른쪽 형제
+                sibling = parent.getPointer(index + 1);
+            return sibling;
+        } else
+            return null;
+    }
+
+    private void redistributeBT(BTreeNode sibling, BTreeNode p) { // 형제노드 이용해서 키 재분배
+        BTreeNode parent = p.getParent();
+        int sindex = parent.getPointerIndex(sibling);
+        int pindex = parent.getPointerIndex(p);
+
+        if (sindex < pindex) { // 형제노드가 왼쪽에 있을 때
+            parent.addKey(sibling.removeKey(sibling.length() - 1), sindex);
+            p.addKey(parent.removeKey(sindex + 1), 0);
+            if (!sibling.isLeaf()) {
+                BTreeNode newChild = sibling.removePointer(sibling.length() + 1);
+                p.addPointer(newChild, 0);
+                newChild.setParent(p);
+            }
+        } else { // 형제노드가 오른쪽에 있을 때
+            parent.addKey(sibling.removeKey(0), sindex);
+            p.addKey(parent.removeKey(sindex - 1));
+            if (!sibling.isLeaf()) {
+                BTreeNode newChild = sibling.removePointer(0);
+                p.addPointer(newChild);
+                newChild.setParent(p);
+            }
+
+        }
+    }
+
+    private void mergeBT(BTreeNode p) {
+        BTreeNode parent = p.getParent();
+        BTreeNode mergeNode;
+        int index = parent.getPointerIndex(p);
+        parent.removePointer(index);
+        if (index != 0) {
+            T key = parent.removeKey(index - 1);
+            mergeNode = parent.getPointer(index - 1);
+            mergeNode.addKey(key);
+            if (min > 1) { // M이 5 이상일 때 underflow인 노드의 키 옮기기
+                for (int i = 0; i < min - 1; i++)
+                    mergeNode.addKey(p.removeKey(0));
+            }
+
+            if (!p.isLeaf()) { // underflow인 노드의 자식노드 옮기기
+                for (int i = 0; i < min; i++) {
+                    BTreeNode newChild = p.removePointer(0);
+                    mergeNode.addPointer(newChild);
+                    newChild.setParent(mergeNode);
+                }
+            }
+        } else {
+            T key = parent.removeKey(0);
+            mergeNode = parent.getPointer(0);
+            mergeNode.addKey(key, 0);
+            if (min > 1) { // M이 5 이상일 때 underflow인 노드의 키 옮기기
+                for (int i = min - 1; i > 0; i--)
+                    mergeNode.addKey(p.removeKey(i - 1), 0);
+            }
+
+            if (!p.isLeaf()) { // underflow인 노드의 자식노드 옮기기
+                for (int i = min; i > 0; i--) {
+                    BTreeNode newChild = p.removePointer(i - 1);
+                    mergeNode.addPointer(newChild, 0);
+                    newChild.setParent(mergeNode);
+                }
+            }
+        }
+
+        if (parent.isUnderflow()) { // 합병했는데 부모노드가 언더플로우가 되었을 때
+            if (parent.getParent() != null) {
+                BTreeNode sibling = findSibling(parent);
+                if (sibling != null)
+                    redistributeBT(sibling, parent);
+                else
+                    mergeBT(parent);
+            } else {
+                if (parent.length() == 0) { // root의 키가 하나도 없을 때
+                    mergeNode.setParent(null);
+                    root = mergeNode;
+                }
+            }
+        }
+    }
+
+    private void deleteBT(BTreeNode p, T deleteKey) {
+        int index = findIndex(p, deleteKey);
+
+        if (index < p.length() && p.getKey(index).equals(deleteKey)) {
+            if (p.isLeaf()) { // 리프노드일 때
+                p.removeKey(index);
+                if (p.isUnderflow() && p != root) { // 삭제하여 언더플로우가 되었을 때
+                    BTreeNode sibling = findSibling(p);
+                    if (sibling != null)
+                        redistributeBT(sibling, p);
+                    else
+                        mergeBT(p);
+                }
+            } else { // 내부노드일 때
+                BTreeNode nextNode = findNextNode(p, index);
+                T temp = p.getKey(index);
+                p.setKey(nextNode.getKey(0), index);
+                nextNode.setKey(temp, 0);
+                deleteBT(nextNode, deleteKey);
+            }
+        } else if (!p.isLeaf())
+            deleteBT(p.getPointer(index), deleteKey);
+    }
+
+    public void deleteBT(T deleteKey) {
+        if (root.isLeaf() && root.length() == 1 && root.getKey(0).equals(deleteKey))
+            root = null;
+        else
+            deleteBT(root, deleteKey);
+    }
+}
+```
 
 ## [Sorting](#자료구조)
 ![sort](./image/sort.png)
