@@ -185,7 +185,6 @@ gradle.addListener(new MyTaskActionListener())
 ```
  - 빌드 실행 시에 호출되는 콜백 API
 ```gradle
-// gradle 을 생략
 settingsEvaluated {
     println '1. settingsEvaluated'
 }
@@ -292,4 +291,119 @@ project.ext {
     prop2 = 'bbb'
 }
 println project.ext.prop1 + project.ext.prop2
+```
+
+## 의존관계 관리
+ - 의존관계 : '빌드 밖에서 작성된 결과물'을 참조하는 것
+ - 환경구성 : 의존 관계를 분류하는 그룹
+
+### 의존관계 해결 자동화
+ - 설정을 작성해두면 임의의 위치에서 필요한 파일을 내려받거나 복사해서 프로젝트에 추가한다
+```gradle
+configurations { // 환경구성 정의
+  conf1
+  testConf1.extendsFrom conf1 // testConf1은 conf의 의존 관계도 포함한다(상속)
+}
+
+repositories {
+  mavenCentral() // 메이븐 중앙 저장소
+  mavenLocal() // 메이븐 로컬 저장소
+  jcenter() // JCenter 메이븐 저장소
+  ivy { // Ivy 저장소
+    url "http://example.com/ivy-repo"
+    layout "maven" ("gradle", "pattern")
+  }
+  flatDir { // 단순 디렉터리 저장소
+        dirs "libs", "doc-repo"
+  }
+}
+
+dependencies {
+  conf1 'org.slf4j:slf4j-api:1.7.+' // 외부 모듈 의존관계
+  conf1 files("libs/sample-lib.jar") // 파일 의존관계(특정 파일)
+  conf1 fileTree(dir: "libs", include: "**/*.jar") // 파일 의존관계(디렉터리)
+  conf1 project(':shared') // 프로젝트 의존관계
+  conf1 gradleApi() // 그레이들 API 의존관계
+  conf1 localGroovy() // 로컬 그루비 의존관계
+}
+
+task showDeps << {
+  configurations.conf1.each {
+    println it.absolutePath
+  }
+}
+```
+
+### 전이적 의존관계 관리
+ - 필요한 외부 파일이 추가로 다른 외부 파일을 필요로 하는지를 파악하거나 관리할 수 있다
+ - 전이적 의존관계를 관리할 때 발생하는 문제가 '의존관계 버전 경합'이다
+
+#### 경합 해결
+ - Newest 전략 : 버전 경합이 발생하면 가장 최신 버전의 의존관계를 사용한다
+ - Fail 전략 : 버전 경합이 발생하면 예외를 발행해서 빌드 실패를 유도한다(환경구성마다 resolutionStrategy 블록을 설정해야 한다)
+```gradle
+configurations.testConf1 { //
+  resolutionStrategy {
+    failOnVersionConflict()  // Fail 전략 채택
+  }
+}
+```
+
+#### 전이적 의존관계 제외
+ - exclude() : module, group 단위로 의존관계를 제외한다
+```gradle
+configurations.testConf1 {
+  resolutionStrategy {
+    failOnVersionConflict()  // Fail 전략 도입
+  }
+}
+
+dependencies {
+  conf1 group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.3.1'
+  testConf1(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0') {
+    exclude module: 'groovy-all' // groovy-all은 무시한다
+  }
+}
+```
+
+#### 사용할 버전 강제 지정
+ - force() : resolutionStrategy 블록에서 버전을 강제로 지정한다
+ - force : 해당 의존관계를 '강제 버전'으로 표시한다
+```gradle
+configurations.testConf1 {
+  resolutionStrategy {
+    failOnVersionConflict()  // Fail 전략 도입
+    force 'org.hamcrest:hamcrest-core:1.3' // testConf1에서 Hamcrest가 요구되면 반드시 버전 1.3을 사용한다
+  }
+}
+
+dependencies {
+  conf1(group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.3.1') {
+    force = true // 버전이 경합하면 반드시 해당 의존 관계를 사용한다
+  }
+  testConf1(group: 'org.spockframework', name: 'spock-core', version: '0.7-groovy-2.0')
+}
+```
+
+#### 클라이언트 모듈 의존관계
+ - 보통 외부 저장소에 있는 메타 데이터(POM)를 사용하여 전이적 의존관계를 해결한다
+ - 그레이들에서는 빌드 스크립트를 작성해서 해결할 수 있다
+ - 빌드 스크립트에 정의된 모듈과 그 의존관계를 '클라이언트 모듈', '클라이언트 모듈 의존관계'라고 한다
+ ```gradle
+ dependencies {
+  conf1 group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.3.1'
+  testConf1 module('org.spockframework:spock-core:0.7-groovy-2.0') { // 클라이언트 모듈 설정
+    dependency 'org.codehaus.groovy:groovy-all:2.3.1'
+    dependency 'org.hamcrest:hamcrest-core:1.3'
+    module(group: 'junit', name: 'junit-dep', version: '4.10') {
+      dependency  group: 'org.hamcrest', name: 'hamcrest-core', version: '1.3'
+    }
+  }
+}
+```
+
+### 의존관계 표시
+ - 프로젝트가 특정 외부 파일의 어떤 버전에 의존하는 지를 간단하게 표시할 수 있다
+```gradle
+gradle dependencies // 의존관계의 계층을 표시한다
 ```
