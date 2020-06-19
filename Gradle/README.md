@@ -52,15 +52,18 @@
  - 초기화 스크립트
     - 빌드 시 가장 먼저 실행되는 그루비 스크립트(init.gradle)
     - 사용자 정보나 실행 환경 같은 초기 설정을 한다
+    - Gradle 객체에 위임된다
 
  - 설정 스크립트
     - 빌드 대상 프로젝트를 설정하는 그루비 스크립트(settings.gradle)
     - 주로 빌드에 포함될 프로젝트를 정의한다
     - 멀티 프로젝트에서는 반드시 필요한 스크립트 파일로, 루트 프로젝트에 배치한다
+    - Settings 객체에 위임된다
 
  - 빌드 스크립트
     - 빌드 정의를 기술하는 그루비 스크립트(build.gradle)
     - 주로 프로젝트 의존관계나 태스크 정의를 한다
+    - Project 객체에 위임된다
 
  - 속성 파일
     - 그레이들이 표준으로 참조하는 속성 파일(gradle.properties)
@@ -73,8 +76,6 @@
  - buildSrc 프로젝트
     - 빌드 시 참조하는 클래스 파일이나 플러그인 코드를 저장하는 프로젝트 디렉터리
     - 여러 개의 빌드 스크립트가 참조하는 클래스 파일이나 자체 플러그인을 저장한다
-
-![domain](./image/domain.png)
 
 ### 빌드 흐름
 ![build_flow](./image/build_flow.png)
@@ -101,3 +102,194 @@
 ![execution](./image/execution.png)
 
 ## 그레이들 도메인 객체
+
+### Project 객체
+ - 빌드 스크립트에서 위임된다
+ - 그레이들의 처리 대상이 되는 하나의 영역을 나타내는 도메인 객체
+ - 빌드 스크립트의 모든 도메인을 총괄하는 도메인 객체
+
+#### 구조
+ - 상위 프로젝트, 루트 프로젝트, 하위 프로젝트 목록을 관리한다
+ - 환경 구성, 의존관계, 태스크, 플러그인 등 고유의 도메인이 있는 것들은 각각의 컨테이너로 관리한다
+ - 빌드 스크립트에서 동적으로 추가되는 속성도 전용 컨테이너로 관리한다
+![project](./image/project.png)
+
+#### 주요 API
+ - project() : 인수에 프로젝트 경로를 지정해서 대상 Project 객체를 가져온다
+```gradle
+project(':child') {
+    description = '자식 프로젝트의 설명을 설정한다'
+}
+```
+
+ - task() : 태스크를 정의한다
+```gradle
+task hello {
+    doLast {
+        println 'Hello Gradle World!'
+    }
+}
+```
+
+ - beforeEvaluate() : 프로젝트 평가를 시작하기 직전에 호출된다
+ - afterEvaluate() : 프로젝트 평가가 종료된 시점에 호출된다
+```gradle
+gradle.allprojects { project ->
+    project.beforeEvaluate {
+        println project.name + '프로젝트 평가를 시작한다'
+    }
+    project.afterEvaluate {
+        println project.name + '프로젝트 평가를 끝냈다'
+    }
+}
+```
+
+### Task 객체
+ - 대상 작업을 가리키는 도메인 객체
+ - 빌드 스크립트에 기술된 태스크 정의가 Project 객체를 거쳐 Task 객체에 위임된다
+
+#### 주요 API
+ - doFirst() : 태스크 처리를 actions의 선두에 Action 객체로 추가한다
+ - doLast() : 태스크 처리를 actions의 마지막에 Action 객체로 추가한다
+```gradle
+task myTask {
+    doFirst {
+        println 'First!'
+    }
+}
+
+myTask.doLast {
+    println'Last!'
+}
+```
+
+### Gradle 객체
+ - 초기화 스크립트에서 위임된다
+ - 실행 환경인 그레이들을 나타내는 도메인 객체
+ - Project 객체나 Settings 객체가 속성으로 저장되어 있으며, 모든 스크립트 파일에서 접근할 수 있다
+
+#### 주요 API
+ - Gradle 객체는 빌드 실행을 담당하므로 빌드 실행 단계에 특정 처리를 할 수 있는 API가 있다
+ - addListener() : 이벤트 리스너를 추가한다
+```gradle
+class MyTaskActionListener implements TaskActionListener {
+    void beforeActions(Task task) {
+        println '-- ' + task.name + '태스크 액션 실행 전 --'
+    }
+    void afterActions(Task task) {
+        println '-- ' + task.name + '태스크 액션 실행 후 --'
+    }
+}
+
+gradle.addListener(new MyTaskActionListener())
+```
+ - 빌드 실행 시에 호출되는 콜백 API
+```gradle
+// gradle 을 생략
+settingsEvaluated {
+    println '1. settingsEvaluated'
+}
+
+projectsLoaded {
+    println '2. projectsLoaded'
+}
+
+beforeProject {
+    println '3. beforeProject'
+}
+
+afterProject {
+    println '4. afterProject'    
+}
+
+projectsEvaluated {
+    println '5. projectsEvaluated'
+}
+
+buildFinished {
+    println '6. buildFinished'    
+}
+```
+
+### Settings 객체
+ - 설정 스크립트에서 위임된다
+ - 멀티 프로젝트에 속한 프로젝트를 정의한다
+
+#### 주요 API
+ - findProject() : 지정한 디렉터리 또는 파일 경로에 일치하는 Project 객체를 반환한다(없으면 null 반환)
+ - project() : 지정한 디렉터리 또는 파일 경로에 일치하는 Project 객체를 반환한다(없으면 예외 발생)
+ - include() : 계층형 멀티 프로젝트에 프로젝트를 추가한다
+ - includeFlat() : 단층형 멀티 프로젝트에 프로젝트를 추가한다
+```gradle
+findProject 'child'
+find 'child:grandchild'
+include 'child'
+includeFlat 'child:grandchild'
+```
+
+### ExtensionAware 객체
+ - 빌드 실행 시에 다른 객체를 이용해서 그레이들 도메인 객체를 확장해주는 객체
+ - 확장 속성을 저장하기 위한 extenstions라는 컨테이너가 있다
+ - create() : 추가할 속성과 타입을 지정한다(클래스 생성자 인수도 지정할 수 있다)
+```gradle
+class MutableObject {
+	private String property
+
+	String getProperty() { return property; }
+
+	void setProperty(String property) {
+	    this.property = property
+	}
+}
+
+project.extensions.create('mutable', MutableObject) // 속성, 타입
+project.mutable.property = 'MutableObject이다'
+
+task showMutableObject << {
+    println project.mutable.property
+}
+
+
+class ImmutableObject {
+	private String property
+
+	ImmutableObject(String property) {
+	    this.property = property
+	}
+
+	String getProperty() { return property; }
+}
+
+extensions.create('imutable', ImmutableObject, 'ImmutableObject이다') // 속성, 타입, 클래스 생성자 인수
+
+task showImmutableObject << {
+	println imutable.property
+}
+```
+
+### ExtraPropertiesExtenstion 객체
+ - Project 객체나 Task 객체에서 ext로 정의된 확장 속성의 실제 클래스
+ - 키-값 형태로 임의의 객체를 저장한다
+ - has(), set(), get()으로 properties에 지정한 키의 유무를 확인하거나 특정한 키의 값을 변경하거나 가져올 수 있다
+```gradle
+project.ext.set('property', 'ext에 추가한 속성이다.')
+
+if(project.ext.has('property')) {
+    println '확장 속성의 값: ' + project.ext.get('property')
+}
+
+// Groovy 속성 참조
+project.ext.property = 'ext에 추가한 속성이다.。'
+println '확장 속성의 값: ' + project.property
+
+// Map 리터럴 형식
+project.ext['property'] = 'ext에 추가한 속성이다.'
+println '확장 속성의 값: ' + project.ext['property']
+
+// 클로저를 사용한 설정
+project.ext {
+    prop1 = 'aaa'
+    prop2 = 'bbb'
+}
+println project.ext.prop1 + project.ext.prop2
+```
