@@ -1,3 +1,5 @@
+
+
 # 코루틴
 
 ## Part 1. Introduction
@@ -70,8 +72,8 @@ val job: Job = launch(coroutineContext) {
 
 #### async
 
-- 새로운 코루틴을 생성하고 Defered를 반환하는 메서드
-- Defered는 Job을 확장한 인터페이스, 코루틴의 결과를 기다리도록 하는 await()를 가지고 있다
+- 새로운 코루틴을 생성하고 Deferred를 반환하는 메서드
+- Deferred는 Job을 확장한 인터페이스, 코루틴의 결과를 기다리도록 하는 await()를 가지고 있다
 
 ```kotlin
 val deferred: Deferred<T> = async(coroutineContext) {
@@ -83,7 +85,7 @@ val deferred: Deferred<T> = async(coroutineContext) {
 (5) ... use resultValue ...
 ```
 
-1. async()가 즉시 Defered를 반환하고, (3)의 코드가 실행된다
+1. async()가 즉시 Deferred를 반환하고, (3)의 코드가 실행된다
 
 2. (1)과 (3)의 코드가 같은 시간에 병렬적으로 실행된다
 
@@ -118,13 +120,231 @@ val resultValue: T = withContext(Dispatchers.IO) { // 블록 내에 있는 코�
 
 ## Part 3. Coroutines in Android Studio
 
+![coroutine_builder](/Users/jeong-inkwon/Documents/SNP Lap/tutorials/MyDocument/Coroutine/image/coroutine_builder.png)
+
+- (1)의 아이콘은 suspend 함수 호출이 있는 라인을 나타낸다
+- (2)의 코드 블럭은 CoroutineScope 내에서 실행된다
+
+### What happens to the coroutine scope in this example?
+
+- 클래스는 CoroutineScope 인터페이스를 구현하여, 클래스 내에 모든 것은 coroutine scope를 이용할 수 있다
+- launch(), async(), withContext()는 새로운 context를 가진 scope를 가진다
+- 모든 scope들은 부모-자식관계를 가진다(context의 Job을 기준으로)
+- launch()
+  - CoroutineContext : coroutineContext + Dispatchers.Main
+  - 부모 context : coroutineContext
+- withContext()
+  - CoroutineContext : launch()의 context + Dispatchers.Default
+  - 부모 context : launch()의 context
+- async()
+  - CoroutineContext : launch()의 context + Dispatchers.Default
+  - 부모 context : launch()의 context
+
+### Sequence of steps in the main Android UI thread
+
+1. launch()는 메인 스레드에서 새 코루틴을 시작한다
+2. withContext()는 launch() 코루틴을 중지시키고, 코드 블럭을 백그라운드 스레드에서 실행시킨다
+   결과를 반환하고 중지한 코루틴을 재개한다
+3. async()는 즉시 결과를 반환하고, 백그라운드 스레드에서 코드 블럭을 실행한다(launch()와 async() 병렬 실행)
+4. await()는 launch() 코루틴을 중지시키고, async()가 완료되기를 기다린다
+5. async()가 반환한 결과를 변수에 할당한고, launch() 코루틴을 재개한다
+
 
 
 ## Part 4. Running coroutines sequentially or in parallel
 
+### Sequentially
+
+- 순차 처리는 다른 작업을 실행하기 전에 실행중인 작업의 완료를 기다리는 것이다
+- 주로 다른 작업의 결과를 필요로 할 때 사용된다 
+
+```kotlin
+val result1: Int = withContext(Dispatchers.Default) {
+(1) // ... do something ...
+    return@withContext value1
+}
+val result2: Int = withContext(Dispatchers.Default) {
+(2) // ... do something with result1 ...
+    return@withContext value2
+}
+... other code in the parent coroutine ...
+```
+
+- withContext()를 사용하면 순차적으로 작업을 처리하는데 용이하다
+- withContext()는 suspend 함수여서, 결과를 반환하기까지 withContext()를 호출한 코루틴을 중지시킨다
+- (1)의 코드가 실행되어 반환한 값을 result1에 할당하고, (2)의 코드가 실행되어 반환한 값을 result2에 할당한다
+
+### Parallel
+
+- 병렬 처리는 여러 CPU 코어를 사용하여 스레드들을 동시에 실행하는 것이다
+- 다른 작업의 결과를 기다릴 필요가 없어서 더 빠른 처리능력을 가진다
+
+```kotlin
+val result1Deferred: Deferred<Int> = async(Dispatchers.Default) {
+(1) // ... do something ...
+    return@async value1
+}
+val result2Deferred: Deferred<Int> = async(Dispatchers.Default) {
+(2) // ... do something ...
+    return@async value2
+}
+val result1: Int = result1Deferred.await()
+val result2: Int = result2Deferred.await()
+... other code in the parent coroutine ...
+```
+
+- async()를 사용하면 병렬적으로 작업을 처리하는데 용이하다
+- (1)의 코드와 (2)의 코드가 병렬적으로 실행된다
+- await()는 async()의 결과를 기다리는 suspend 함수여서 순차적으로 처리된다 
+
 
 
 ## Part 5. Coroutine cancellation
+
+- launch()는 Job, async()는 Deferred를 반환한다(Deferred는 Job을 확장한 객체)
+- Job은 코루틴을 취소하는 cancel() 함수를 가진다
+
+```kotlin
+val job: Job = launch(...) { ... }
+...
+job.cancel()
+val deferred: Deferred = async(...) { ... }
+...
+deferred.cancel()
+```
+
+### Cancellation Exception
+
+- Canellation Exception은 cancel()을 호출했을 때 해당 코루틴뿐 아니라 모든 자식 코루틴을 취소시킬 수 있게 해준다
+- Canellation Exception을 발생시키면, 다른 예외발생처럼 코드 실행에 인터럽트가 생긴다
+- 다른 예외와 차이점은 개발자가 예외를 잡지 않으면 앱은 충돌하지 않는다
+
+### Cancellation through CoroutineContext
+
+```ko
+coroutineContext.cancel()
+coroutineContext.cancelChildren()
+```
+
+- cancel() 
+  - 함수를 호출한 컨텍스트를 포함하여 모든 자식 코루틴의 Job을 취소시킨다
+  - 더 이상 컨텍스트를 사용하여 코루틴을 실행할 수 없다
+- cancelChildren() 
+  - 함수를 호출한 컨텍스트를 제외하고 모든 자식 코루틴의 Job을 취소시킨다
+  - 계속해서 컨텍스트를 사용하여 코루틴을 실행할 수 있다
+
+### Cancellation points
+
+- 코루틴의 중지시점이 Cancellation Exception을 발생시키는 시점이다
+- 모든 suspend 함수는 Cancellation Exception을 발생시킬 후보자이다
+
+```kotlin
+val deferred: Deferred = async(...) { ... }
+...
+deferred.await() // <--- CancellationException can be thrown here
+```
+
+### Catching CancellationException
+
+- Cancellation Exception을 처리하고 다시 예외를 발생시키지 않으면, 부모 코루틴의 취소가 중지된다
+
+```kotlin
+// 코루틴 취소 시 코드 블럭을 실행하고, 다시 예외를 발생시켜 부모 코루틴 취소를 진행한다
+try {
+    ...
+} catch (e: CancellationException) {
+    ... do something to handle the cancellation...
+    throw e
+}
+```
+
+```kotlin
+// 다시 예외를 발생시키지 않아서 부모 코루틴 취소가 중지된다
+try {
+    ...
+} catch (e: CancellationException) {
+    ... do something to handle the cancellation...
+}
+```
+
+```kotlin
+// Cancellation Exception이라면 다시 예외를 발생시켜 부모 코루틴 취소를 진행한다
+try {
+    ...
+} catch (e: Exception) {
+    if (e is CancellationException) {
+        throw e
+    }
+    ... handle other exceptions ...
+}
+```
+
+### Cancellation is cooperative
+
+- 기본적으로 코루틴 라이브러리에 있는 suspend 함수들은 cancellable이다
+- 개발자가 직접 작성한 suspend 함수는 cancellable로 만들어야 한다
+
+```kotlin
+suspend fun execute(...) {
+    ...
+(1) aSuspendFunction()
+    ...
+(2) anotherSuspendFunction()
+    ...
+}
+```
+
+- (1), (2)의 함수가 모두 cancellable이므로 execute()도 cancellable이 된다
+
+```kotlin
+suspend fun execute(...) {
+    while (isActive && ...) {
+        ... long computation steps ...
+    }
+    
+    if (!isActive) {
+        throw CancellationException()
+    }
+    ... other code after the long computation ...
+}
+```
+
+- isActive 프로퍼티를 이용하여 cancellable로 만든다
+
+### Cancellation in Android
+
+- Presenter와 ViewModel은 CoroutineScope 인터페이스를 구현한다
+- Presenter와 ViewModel의 CoroutineScope를 취소하면 그들의 생명주기 안에서 실행된 모든 코루틴을 취소할 수 있다
+
+#### Presenter in MVP
+
+- Presenter와 연결된 액티비티가 onStop()을 호출할 때마다 모든 코루틴을 취소한다
+- Presenter 인스턴스가 destroy되지 않을 경우 CoroutineScope를 재사용할 수 있게 cancelChildren()을 사용한다
+
+``` kotlin
+abstract class BasePresenter : CoroutineScope {
+    ...
+    fun cancelCoroutines() {
+        coroutineContext.cancelChildren()
+    }
+}
+```
+
+#### ViewModel in MVVM
+
+- ViewModel이 onCleared()를 호출할 때 모든 코루틴을 취소한다
+- ViewModel은 콜백 메서드 호출 후 destroy되기 때문에 cancel()도 사용할 수 있다
+
+```kotlin
+abstract class BaseViewModel : ViewModel(), CoroutineScope {
+    ...
+    override fun onCleared() {
+        coroutineContext.cancelChildren()
+      	coroutineContext.cancel()
+        super.onCleared()
+    }
+}
+```
 
 
 
