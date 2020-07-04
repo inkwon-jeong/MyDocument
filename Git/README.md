@@ -12,7 +12,7 @@
 
 - create a new, empty repository in the current directory
 
-### git clone <path-to-repository-to-clone>
+### git clone \<path-to-repository-to-clone>
 
 - create an identical copy of an existing repository
 
@@ -36,7 +36,7 @@
 - displays the number of lines that have been added/removed
 - displays a summary line with the total number of modified files and lines that have been added/removed
 
-### git log -p (<SHA-of-a-commit>) (git log --patch)
+### git log -p (\<SHA-of-a-commit>) (git log --patch)
 
 - displays the files that have been modified
 - displays the location of the lines that have been added/removed
@@ -46,7 +46,7 @@
 
 - shows all branches and therefore all commits in the repository
 
-### git add <file1> <file2> … <fileN>
+### git add \<file1> \<file2> … \<fileN>
 
 - move files from the Working Directory to the Staging Index
 
@@ -58,27 +58,27 @@
 
 - see changes that have been made but haven't been committed, yet
 
-### git tag -a <tag-name>
+### git tag -a \<tag-name>
 
 - add a marker on a specific commit
 
-### git tag -d <tag-name> (git tag --delete)
+### git tag -d \<tag-name> (git tag --delete)
 
 - delete a marker on a specific commit
 
-### git branch <branch-name> <SHA-of-a-commit>
+### git branch \<branch-name> \<SHA-of-a-commit>
 
 - list all branch names in the repository
 - create new branches
 - delete branches (-d option)
 
-### git checkout <new-branch-name> <branch-name>
+### git checkout \<new-branch-name> \<branch-name>
 
 - remove all files and directories from the Working Directory that Git is tracking
 (files that Git tracks are stored in the repository, so nothing is lost)
 - go into the repository and pull out all of the files and directories of the commit that the branch points to
 
-### git merge <name-of-branch-to-merge-in>
+### git merge \<name-of-branch-to-merge-in>
 
 - combine branches in Git
 
@@ -105,11 +105,11 @@
   - stage the file(s)
   - and run git commit --amend
 
-### git revert <SHA-of-commit-to-revert>
+### git revert \<SHA-of-commit-to-revert>
 
 - reverse a previously made commit
 
-### git reset <reference-to-commit>
+### git reset \<reference-to-commit>
 
 - move the HEAD and current branch pointer to the referenced commit
 - erase commits (--hard)
