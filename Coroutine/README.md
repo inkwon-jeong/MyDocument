@@ -249,7 +249,7 @@ deferred.await() // <--- CancellationException can be thrown here
 - Cancellation Exception을 처리하고 다시 예외를 발생시키지 않으면, 부모 코루틴의 취소가 중지된다
 
 ```kotlin
-// 코루틴 취소 시 코드 블럭을 실행하고, 다시 예외를 발생시켜 부모 코루틴 취소를 진행한다
+// 코루틴 취소 시 코드 블럭을 실행하고, 다시 예외를 발생시켜 다른 코루틴 취소를 진행한다
 try {
     ...
 } catch (e: CancellationException) {
@@ -259,7 +259,7 @@ try {
 ```
 
 ```kotlin
-// 다시 예외를 발생시키지 않아서 부모 코루틴 취소가 중지된다
+// 다시 예외를 발생시키지 않아서 다른 코루틴 취소가 중지된다
 try {
     ...
 } catch (e: CancellationException) {
@@ -268,7 +268,7 @@ try {
 ```
 
 ```kotlin
-// Cancellation Exception이라면 다시 예외를 발생시켜 부모 코루틴 취소를 진행한다
+// Cancellation Exception이라면 다시 예외를 발생시켜 다른 코루틴 취소를 진행한다
 try {
     ...
 } catch (e: Exception) {
@@ -284,6 +284,8 @@ try {
 - 기본적으로 코루틴 라이브러리에 있는 suspend 함수들은 cancellable이다
 - 개발자가 직접 작성한 suspend 함수는 cancellable로 만들어야 한다
 
+- (1), (2)의 함수가 모두 cancellable이므로 execute()도 cancellable이 된다
+
 ```kotlin
 suspend fun execute(...) {
     ...
@@ -294,7 +296,7 @@ suspend fun execute(...) {
 }
 ```
 
-- (1), (2)의 함수가 모두 cancellable이므로 execute()도 cancellable이 된다
+- isActive 프로퍼티를 이용하여 cancellable로 만든다
 
 ```kotlin
 suspend fun execute(...) {
@@ -308,8 +310,6 @@ suspend fun execute(...) {
     ... other code after the long computation ...
 }
 ```
-
-- isActive 프로퍼티를 이용하여 cancellable로 만든다
 
 ### Cancellation in Android
 
@@ -350,19 +350,334 @@ abstract class BaseViewModel : ViewModel(), CoroutineScope {
 
 ## Part 6: Exception propagation
 
+### Catching exceptions thrown by coroutines
+
+- suspend 함수는 코루틴에서 발생하는 예외를 발생시키거나 처리할 수 있다
+
+- join()은 Job의 완료를 기다리는 suspend 함수이자, 코루틴에서 발생한 예외를 콜 스택에 전달하는 지점이다
+
+```kotlin
+val job: Job = launch(coroutineContext) {
+    ... coroutine code that throws an exception ...
+}
+try {
+    job.join()
+} catch (e: MyException) {
+    ... handle the exception ...
+}
+```
+
+- await()는 비동기 작업의 결과를 기다리는 suspend 함수이자, 비동기 작업에 의해 발생한 오류를 처리되는 지점이다
+
+```kotlin
+val deferred: Deferred<T> = async(coroutineContext) {
+    ... coroutine code that throws an exception ...
+    return@async result
+}
+try {
+    val resultValue: T = deferred.await()
+    ...
+} catch (e: MyException) {
+    ... handle the exception ...
+}
+```
+
+- 다른 suspend 함수 역시 예외를 처리할 수 있다
+
+```kotlin
+suspend fun execute(...) {
+    ...
+    throw MyException()
+    ...
+}
+try {
+    execute(...)
+    ...
+} catch (e: MyException) {
+    ... handle the exception ...
+}
+```
+
+### Catching exceptions thrown by async coroutines
+
+- supervisorScope : suspend 함수, 블럭 안에서 생성된 자식 코루틴의 실패가 부모 코루틴의 실패로 이어지지 않게 한다
+
+```kotlin
+launch(...) { // (1)
+    supervisorScope { // 예외로 인해 (2), (3), (4)가 실패하여도 (1)은 계속 실행된다
+        ...
+        async(...) { // (2)
+            return@async supervisorScope {
+                ...
+                return@supervisorScope result
+            }
+        }
+        ...
+        async(...) { // (3)
+            return@async supervisorScope { // 예외로 인해 (4)가 실패하여도 (3)은 계속 실행된다
+                ...
+                launch(...) { // (4)
+                    supervisorScope {
+                        ...
+                    }
+                }
+                ...
+                return@supervisorScope result
+            }
+        }
+        ...
+    }
+}
+```
+
 
 
 ## Part 7: A small DSL for Android apps development
+
+### The key features of our coroutines DSL
+
+- 사용하기 쉽다
+- 명확한 용어
+- 대부분의 코루틴 사용 시나리오에 사용될 수 있다
+- DSL로 해결할 수 없는 특정한 시나리오에는 일반 코루틴 메서드를 사용하여 해결할 수 있다
+- 간결한 코드
+- 테스트에 용이하다
+
+### Terminology
+
+- job : Presenter 와 ViewModel에 있는 메서드들은 job을 실행시킬 수 있다
+- task : job은 다양한 task로 구성된다
+- sub-task : task는 다양한 sub-task를 갖는다
+
+```kotlin
+job 1 {
+    task 1.1 {}
+    task 1.2 {
+        task 1.2.1 {}
+    }
+    task 1.3 {}
+}
+job 2 {
+    task 2.1 {
+        task 2.1.1 {
+            task 2.1.1.1 {}
+            task 2.1.1.2 {}
+        }
+    }
+}
+```
+
+### DSL helpers
+
+- helper 메서드는 job과 task를 나타낸다
+- task의 처리 방식(순차, 병렬), dispatcher(Main, IO, Default)를 구분한다
+- 코루틴 취소와 예외 전달을 처리한다
+
+- 모든 메서드는 CoroutineContext를 인자로 받는다(주로 dispatcher를 지정하는데 사용한다)
+- startJob()과 startTaskAsync()는 parent scope를 인자로 받아 부모-자식 관계를 설정한다
+  각 코루틴 메서드가 적절한 scope에서 실행되고 취소와 예외 전달을 정확하게 다룰 수 있다
+
+```kotlin
+// 다양한 task로 구성된 job을 실행한다
+fun startJob(
+    parentScope: CoroutineScope,
+    coroutineContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> Unit
+) {
+    parentScope.launch(coroutineContext) {
+        supervisorScope {
+            block()
+        }
+    }
+}
+// task가 실행되고 반환될 때까지 부모 job 이나 task를 중지시키는 순차적인 task를 실행한다
+suspend fun <T> startTask(
+    coroutineContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> T
+): T {
+    return withContext(coroutineContext) {
+        return@withContext block()
+    }
+}
+// 병렬 task를 실행하고 Deferred 객체를 반환한다
+// Deferred 객체를 반환하는 함수명에 'Async'를 붙인다
+fun <T> startTaskAsync(
+    parentScope: CoroutineScope,
+    coroutineContext: CoroutineContext,
+    block: suspend CoroutineScope.() -> T
+): Deferred<T> {
+    return parentScope.async(coroutineContext) {
+        return@async supervisorScope {
+            return@supervisorScope block()
+        }
+    }
+}
+```
+
+### DSL methods
+
+- DSL 메서드는 helper 메서드를 이용하고 dispatcher를 명시적으로 지정한다
+- 코루틴 코드가 알맞는 dispatcher에서 실행되는지 분명하게 알 수 있다(함수 이름이 dispatcher를 나타낸다)
+- 두 코루틴이 같은 dispatcher를 공유한다면, 코루틴 머신이 컨텍스트 스위칭 없이 같은 스레드에서 실행시킨다
+
+```kotlin
+fun CoroutineScope.uiJob(block: suspend CoroutineScope.() -> Unit) {
+    startJob(this, Dispatchers.Main, block)
+}
+
+fun CoroutineScope.backgroundJob(block: suspend CoroutineScope.() -> Unit) {
+    startJob(this, Dispatchers.Default, block)
+}
+
+fun CoroutineScope.ioJob(block: suspend CoroutineScope.() -> Unit) {
+    startJob(this, Dispatchers.IO, block)
+}
+
+suspend fun <T> uiTask(block: suspend CoroutineScope.() -> T): T {
+    return startTask(Dispatchers.Main, block)
+}
+
+suspend fun <T> backgroundTask(block: suspend CoroutineScope.() -> T): T {
+    return startTask(Dispatchers.Default, block)
+}
+
+suspend fun <T> ioTask(block: suspend CoroutineScope.() -> T): T {
+    return startTask(Dispatchers.IO, block)
+}
+
+fun <T> CoroutineScope.uiTaskAsync(block: suspend CoroutineScope.() -> T): Deferred<T> {
+    return startTaskAsync(this, Dispatchers.Main, block)
+}
+
+fun <T> CoroutineScope.backgroundTaskAsync(block: suspend CoroutineScope.() -> T): Deferred<T> {
+    return startTaskAsync(this, Dispatchers.Default, block)
+}
+
+fun <T> CoroutineScope.ioTaskAsync(block: suspend CoroutineScope.() -> T): Deferred<T> {
+    return startTaskAsync(this, Dispatchers.IO, block)
+}
+```
+
+### DSL in action
+
+- DSL은 코루틴을 사용하는 코드를 간결하고 직관적이게 해준다
+- 코루틴 코드를 상세하게 작성하는 것 대신 개발업무의 요구사항에 집중하게 도와준다
+
+```kotlin
+class MyViewModel : ViewModel(), CoroutineScope {
+    ...
+    
+    override fun aMethod() = uiJob {
+        ... do something on the UI thread ...
+        val taskResult = backgroundTask {
+            ... do something on a background thread ...
+            return@backgroundTask result
+        }
+        ... use taskResult on the UI thread ...
+    }
+    override fun anotherMethod() = uiJob {
+        ... do something on the UI thread ...
+        val taskDeferred = ioTaskAsync {
+            ... do something on a IO thread ...
+            return@ioTaskAsync result
+        }
+        ... do something on the UI thread while the task runs ...
+        val taskResult = taskDeferred.await()
+        ... use taskResult on the UI thread ...
+    }
+    
+    ...
+}
+```
 
 
 
 ## Part 8: MVP and MVVM with Clean Architecture
 
+### Usecases
+
+- Usecase : 비즈니스 로직을 작은 작업 단위로 나눈 것
+- 각 usecase를 태스크로 구현한다
+
+- Sequential Task
+
+```kotlin
+class SequentialTaskUseCase {
+
+    suspend fun execute(...): T = backgroundTask {
+        ... do something on a background thread ...
+
+        return@backgroundTask result
+    }
+}
+```
+
+- ParallelTask
+
+```kotlin
+class ParallelTaskWithRepositoryUseCase
+@Inject constructor(
+    private val remoteRepository: RemoteRepository
+) {
+
+    fun executeAsync(
+        parentScope: CoroutineScope,
+        ...
+    ): Deferred<T> = parentScope.backgroundTaskAsync {
+        ... do something on a background thread ...
+        val fetchedData = ioTask { remoteRepository.fetchData() } // sub-task
+
+        ... use fetchedData on a background thread ...
+
+        return@backgroundTaskAsync result
+    }
+}
+```
+
+### Presenter and ViewModel
+
+- Presenter와 ViewModel의 메서드는 Job을 실행한다
+- Job은 여러 task로 구성되어 있다(= 비즈니스 로직은 여러 usecase로 구성된다)
+
+```kotlin
+class MyViewModel : ViewModel(), CoroutineScope {
+    ...
+    
+    override fun aMethod() = uiJob {
+        ...
+
+        val task1Result: T = sequentialTask.execute(...)
+
+        ...
+        val task2Deferred: Deferred<T> = parallelTask
+            .executeAsync(this, ...)
+
+        ...
+        val task2Result: T = task2Deferred.await()
+        ...
+    }
+    ...
+}
+```
+
 
 
 ## Part 9: Combining multiple tasks with the operators on collections
 
+- 코틀린은 컬렉션에 대한 좋은 API가 있다
+- RxJava에서 스트림을 처리하듯이, 컬렉션에 있는 아이템을 처리하는데 편리하다
 
+```kotlin
+val result = myCollection
+    .map { ioTaskAsync { repository1.fetchData(it) } } // (1) Deferred<T> Collection
+    .map { it.await() } // (2) <T> Collection
+    .map { ioTask { repository2.fetchData(it) } } // (3) <T> Collection
+    .sum() // (4) Sum of Collection
+```
+
+1. 컬렉션에 있는 각 아이템을 인자로 넘겨 레포지터리로부터 데이터를 받아온다(병렬처리)
+2. 모든 데이터를 받을 때까지 기다리고, 각 데이터를 인자로 넘겨 다른 레포지터리로부터 데이터를 받아온다(순차처리)
+3. 받은 데이터의 합을 계산한다
 
 ## Part 10: Handling callbacks
 
