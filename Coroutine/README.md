@@ -120,7 +120,7 @@ val resultValue: T = withContext(Dispatchers.IO) { // 블록 내에 있는 코�
 
 ## Part 3. Coroutines in Android Studio
 
-![coroutine_builder](/Users/jeong-inkwon/Documents/SNP Lap/tutorials/MyDocument/Coroutine/image/coroutine_builder.png)
+![coroutine_builder](./image/coroutine_builder.png)
 
 - (1)의 아이콘은 suspend 함수 호출이 있는 라인을 나타낸다
 - (2)의 코드 블럭은 CoroutineScope 내에서 실행된다
@@ -668,26 +668,341 @@ class MyViewModel : ViewModel(), CoroutineScope {
 - RxJava에서 스트림을 처리하듯이, 컬렉션에 있는 아이템을 처리하는데 편리하다
 
 ```kotlin
-val result = myCollection
+// T : repository1.fetchData()의 반환타입
+// R : repository2.fetchData()의 반환타입
+val result = myCollection 
     .map { ioTaskAsync { repository1.fetchData(it) } } // (1) Deferred<T> Collection
     .map { it.await() } // (2) <T> Collection
-    .map { ioTask { repository2.fetchData(it) } } // (3) <T> Collection
-    .sum() // (4) Sum of Collection
+    .map { ioTask { repository2.fetchData(it) } } // (3) <R> Collection
+    .sum() // (4) Sum of <R> Collection
 ```
 
-1. 컬렉션에 있는 각 아이템을 인자로 넘겨 레포지터리로부터 데이터를 받아온다(병렬처리)
-2. 모든 데이터를 받을 때까지 기다리고, 각 데이터를 인자로 넘겨 다른 레포지터리로부터 데이터를 받아온다(순차처리)
-3. 받은 데이터의 합을 계산한다
+1. 각각의 데이터를 인자로 넘겨 repository1로부터 데이터를 받는다(병렬처리)
+2. 모든 데이터를 받을 때까지 기다리고, 받은 데이터의 컬렉션을 반환한다
+3. 다시 각각의 데이터를 인자로 넘겨 repository2로부터 받은 데이터의 컬렉션을 반환한다(순차처리)
+4. 컬렉션의 합을 계산하고 반환한다
+
+
 
 ## Part 10: Handling callbacks
+
+- 코루틴의 장점 중의 하나는 콜백이 없는 것이다
+- 콜백이 있는 기존 코드나 라이브러리 역시 코루틴을 이용하여 사용할 수 있다
+
+- executeAction()은 성공, 에러, 취소에 대한 콜백을 인자로 받는다
+
+```kotlin
+class ExecutorWithCallback {
+    ...
+    fun executeAction(
+        ...,
+        successCallback: (T) -> Unit,
+        cancelCallback: () -> Unit,
+        errorCallback: () -> Unit
+    ) {
+        when (...) {
+            ... -> successCallback(...)
+            ... -> cancelCallback()
+            else -> errorCallback()
+        }
+    }
+    ...
+}
+```
+
+- suspendCancellableCoroutine()은 CancellableContinuation의 인스턴스를 제공한다
+- CancellableContinuation의 인스턴스를 이용하여 액션이 성공했을 때 결과를 반환하며 코루틴을 재개하고, 에러가 생겼을 때 예외를 던지고, 취소되었을 때 코루틴을 취소할 수 있다
+
+```kotlin
+suspend fun execute(...): T = backgroundTask {
+    return@backgroundTask suspendCancellableCoroutine<T> {
+        continuation -> // CancellableContinuation의 인스턴스
+        ExecutorWithCallback().executeAction(...,
+            { result -> successCallback(result, continuation) },
+            { cancelCallback(continuation) },
+            { errorCallback(continuation) })
+    }
+}
+
+private fun successCallback(
+    result: T,
+    continuation: CancellableContinuation<T>
+) {
+    continuation.resume(result) // 코루틴 재개
+}
+
+private fun cancelCallback(
+    continuation: CancellableContinuation<T>
+) {
+    continuation.cancel() // 코루틴 취소
+}
+
+private fun errorCallback(
+    continuation: CancellableContinuation<T>
+) {
+    continuation.resumeWithException(CustomTaskException()) // 예외 던짐
+}
+```
+
+- 콜백을 내부적으로 처리하기 때문에 액션이 성공했을 때 결과를 반환 받고, 에러가 생겼을 때 예외처리를 해주고, 취소됐을 때 CancellationException을 처리하면 된다
+
+```kotlin
+fun runCallbackTask() = uiJob {
+    try {
+        val taskResult = callbackTaskUseCase.execute(...)
+        ... handle the result ...
+    } catch (e: CustomTaskException) {
+        ... handle the exception ...
+    } catch (e: CancellationException) {
+        ... handle the cancellation ...
+    }
+}
+```
+
+### Continuation
+
+- Continuation : 코루틴이 중지된 시점 이후에 남은 코루틴 코드
+- CancellableContinuation : 코루틴을 취소할 수 있는 Continuation
+
+![continuation](./image/continuation.png)
+
+- (1)은 suspendFunction1()의 Continuation
+- (2)는 suspendFunction2()의 Continuation
 
 
 
 ## Part 11: Channels
 
+- 채널은 코루틴끼리 서로 통신할 수 있게 해준다
+
+### Simple Channel
+
+#### Usecase
+
+- executeAsync()는 SendChannel 인터페이스를 구현한 채널을 인자로 받는다
+- send()는 cancellable suspend 함수여서 executeAsync()도 cancellable이다
+- 더 이상 보낼 아이템이 없으면 채널을 닫는다
+
+```kotlin
+// Sender Coroutine
+fun executeAsync(
+    parentScope: CoroutineScope,
+    ...,
+    itemsChannel: SendChannel<T>
+): Deferred<Unit> = parentScope.backgroundTaskAsync {
+    ...
+
+    while (...) {
+        ...
+        itemsChannel.send(item) // 채널을 통해 아이템을 보낸다
+    }
+
+    itemsChannel.close() // 채널을 닫는다
+    return@backgroundTaskAsync
+}
+```
+
+#### Presenter / ViewModel
+
+- T 타입의 채널을 생성하고 채널을 통해 아이템을 전달한다
+- for 구문을 이용하여 새로운 아이템을 받아 처리한다
+- for 구문이 suspend 함수여서 처리할 새 아이템이 있을 때까지 코루틴을 중지한다
+- 채널이 닫힐 때 for 구문이 종료된다
+
+```kotlin
+// Receiver Coroutine
+fun runChannelTask() = uiJob {
+    val channel = Channel<T>() // T 타입 채널을 생성한다
+    val taskResult: Deferred<Unit> = channelTask.executeAsync( // 채널을 통해 아이템을 보낸다
+        this,
+        ...,
+        channel)
+
+    for (receivedItem in channel) { // for 문을 이용하여 받은 아이템을 처리한다
+        ... process receivedItem ... // suspend function
+    }
+
+    taskResult.await() // 채널을 통한 아이템 주고받기가 완료될 때까지 기다린다
+    
+    ...
+}
+```
+
+### Backpressure
+
+#### Usecase
+
+- receiver 코루틴은 받을 아이템이 없으면 중지된다
+- sender 코루틴은 receiver 코루틴이 아이템을 아직 처리하지 못했다면 중지된다
+- 아이템을 보내는 속도가 받아서 처리하는 속도보다 많이 빠를 때 select()를 사용한다
+- select()는 기본 채널의 버퍼가 아이템을 수용할 수 있다면 기본 채널을 선택하고, 없다면 보조 채널을 선택한다 
+- 모든 채널의 버퍼가 가득찼다면, select()는 이용할 수 있는 채널이 생길 때까지 sender 코루틴을 중지한다
+
+```kotlin
+// Sender Coroutine
+fun executeAsync(
+    parentScope: CoroutineScope,
+    ...,
+    itemsChannel: SendChannel<T>, // 기본 채널
+    backupChannel: SendChannel<T> // 보조 채널
+): Deferred<Unit> = parentScope.backgroundTaskAsync {
+    ...
+
+    while (...) {
+        ...
+        select<Unit> { // 상황에 따라 채널을 선택한다
+            itemsChannel.onSend(item) { }
+            backupChannel.onSend(item) { }
+        }
+    }
+
+    itemsChannel.close()
+    backupChannel.close()
+    return@backgroundTaskAsync
+}
+```
+
+#### Presenter / ViewModel
+
+- primaryChannel은 처리하기 원하는 아이템을 다룬다
+- backpressureChannel은 처리속도에 비해 빨리 받은 아이템을 다룬다(버리거나 다른 방식으로 다룰 수 있다)
+- 두 채널은 다른 백그라운드 스레드에서 동작되어 서로에게 영향을 주지 않는다
+
+```kotlin
+// Receiver Coroutine
+fun runChannelTask() = uiJob {
+    val primaryChannel = Channel<T>() // 기본 채널
+    val backpressureChannel = Channel<T>() // 보조 채널
+    val taskResult: Deferred<Unit> = channelTask.executeAsync(
+        this,
+        ...,
+        primaryChannel,
+        backpressureChannel)
+
+    val primaryHandler = backgroundTaskAsync {
+        for (receivedItem in primaryChannel) {
+            ... process receivedItem ... // 기본 채널로부터 받은 아이템을 처리한다
+        }
+    }
+
+    val backpressureHandler = backgroundTaskAsync {
+        for (receivedItem in backpressureChannel) {
+            ... discard or handle receivedItem ... // 보조 채널로부터 받은 아이템을 처리한다
+        }
+    }
+
+    primaryHandler.await()
+    backpressureHandler.await()
+    taskResult.await()
+    
+    ...
+}
+```
+
 
 
 ## Part 12: Testing
 
+### Dispatcher 설정
 
+- 코루틴을 테스트할 때 Dispatchers.Unconfined를 사용한다
+- Unconfined dispatcher는 특정 스레드 풀에서 실행할 필요 없이 현재 스레드를 이용하여 코루틴을 실행한다
+
+```kotlin
+companion object {
+    @BeforeClass
+    @JvmStatic
+    fun beforeClass() {
+        with (AppCoroutinesConfiguration) {
+            uiDispatcher = Dispatchers.Unconfined
+            backgroundDispatcher = Dispatchers.Unconfined
+            ioDispatcher = Dispatchers.Unconfined
+        }
+    }
+}
+```
+
+### CoroutineScope 설정
+
+```kotlin
+class TestAppCoroutineScope : CoroutineScope {
+
+    private val job = Job()
+
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Unconfined + job
+}
+```
+
+### Suspend 함수 호출
+
+- runBlocking() : 메인 스레드에서 실행되는 코루틴을 생성하는 Coroutine Builder
+- runBlocking()은 모든 함수 호출을 순차적이게 하여 테스트에 용이하다
+- runBlocking()은 suspend 함수 호출을 해야할 때 필요하다
+
+```kotlin
+private fun whenExecuteWith(...) = runBlocking {
+    actualExecuteResult = subject.execute(...) // suspend function
+}
+```
+
+- CompletableDeferred는 지정한 결과값을 가지고 완료된 Deferred 객체이다
+- CompletableDeferred는 이미 완료돼서 기다릴 필요가 없다
+- anyObj()는 any()를 사용하고 null이 아닌 값을 반환한다
+
+```kotlin
+given(
+    mockUseCase.executeAsync(
+        anyObj<CoroutineScope>(testAppCoroutineScope),
+        ...
+    )
+).willReturn(CompletableDeferred(givenResult))
+```
+
+```kotlin
+inline fun <reified T> anyObj(obj: T): T {
+    any(T::class.java) // 해당 클래스의 아무 인스턴스를 생성한다
+    return obj
+}
+```
+
+### 테스트 예시
+
+- 원격 저장소로부터 데이터를 받는 usecase를 테스트한다
+- TestAppCoroutineScope의 인스턴스를 parent coroutine scope로 사용한다
+- 저장소로부터 받은 데이터와 usecase로부터 반환된 데이터가 같은지 확인한다
+- await()가 suspend 함수이므로, runBlocking()을 사용한다
+
+```kotlin
+@Mock
+private lateinit var mockRemoteRepository: RemoteRepository
+
+private lateinit var subject: ParallelTaskUseCase
+
+private lateinit var actualExecuteAsyncResult: Deferred<T>
+
+@Before
+fun before() {
+    subject = ParallelTaskUseCase(mockRemoteRepository)
+}
+@Test
+fun executeAsync_executesTask() {
+    givenFetchedDataIs(100)
+    whenExecuteAsync()
+    thenResultIs(100)
+}
+private fun givenFetchedDataIs(result: T) {
+    given(mockRemoteRepository.fetchData(...)).willReturn(result) // result를 무조건 반환한다
+}
+
+private fun whenExecuteAsync() {
+    actualExecuteAsyncResult = subject // usecase 실행 결과
+        .executeAsync(testAppCoroutineScope, ...)
+}
+
+private fun thenResultIs(result: T) = runBlocking {
+    // usecase 실행 결과와 result가 같은지 확인한다
+    assertThat(actualExecuteAsyncResult.await()).isEqualTo(result)
+}
+```
 
