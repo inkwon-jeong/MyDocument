@@ -4,7 +4,7 @@
 
 ## Part 1. Introduction
 
-### 코틀린은 무엇인가?
+### 코루틴은 무엇인가?
 
 - 코루틴은 비동기 프로그래밍을 간단하게 해주는 강력한 도구
 - 순차적인 코드의 간단명료함 + 비동기 프로그래밍의 장점
@@ -116,7 +116,7 @@ val resultValue: T = withContext(Dispatchers.IO) { // 블록 내에 있는 코�
 - suspend 함수의 결과가 반환될 때까지 해당 함수를 호출한 코루틴을 중지시킨다
 - 코루틴을 중지시키는 것은 코루틴이 실행되는 스레드를 차단하는 것이 아니다(다른 스레드들이 해당 스레드를 사용할 수 있게 한다)
 
-### CoroutineScope vs CoroutineContext
+## Ref. CoroutineScope vs CoroutineContext
 
 - 모든 코루틴은 CoroutineContext의 인스턴스인 context를 갖는다
 - context는 element의 집합이고 코루틴은 coroutineContext 프로퍼티로 context를 이용할 수 있다
