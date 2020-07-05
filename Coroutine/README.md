@@ -54,7 +54,7 @@ class MyViewModel : ViewModel(), CoroutineScope {
 ### Coroutine Builders
 
 - 새로운 코루틴을 생성하는 메서드
-- 기본적으로 메서드를 호출한 CoroutineScope의 컨텍스트를 상속 받고, 인자로 받은 컨텍스트가 있다면 override한다
+- 기본적으로 메서드를 호출한 CoroutineScope의 context를 상속 받고, 인자로 받은 context가 있다면 override한다
 
 #### launch
 
@@ -95,7 +95,7 @@ val deferred: Deferred<T> = async(coroutineContext) {
 
 #### withContext
 
-- 부모의 컨텍스트를 인자로 받은 컨텍스트로 overriding하는 메서드
+- 부모의 context를 인자로 받은 context로 overriding하는 메서드
 - 주로 스레드를 변경할 때 사용된다
 
 ```kotlin
@@ -110,11 +110,117 @@ val resultValue: T = withContext(Dispatchers.IO) { // 블록 내에 있는 코�
 1. (1)의 코드가 실행되고 결과가 반환된다
 2. (3)의 코드가 실행된다
 
-### *Suspend* Function
+### Suspend Function
 
 - suspend 함수는 코루틴이나 다른 suspend 함수 내에서만 사용된다
 - suspend 함수의 결과가 반환될 때까지 해당 함수를 호출한 코루틴을 중지시킨다
 - 코루틴을 중지시키는 것은 코루틴이 실행되는 스레드를 차단하는 것이 아니다(다른 스레드들이 해당 스레드를 사용할 수 있게 한다)
+
+### CoroutineScope vs CoroutineContext
+
+- 모든 코루틴은 CoroutineContext의 인스턴스인 context를 갖는다
+- context는 element의 집합이고 코루틴은 coroutineContext 프로퍼티로 context를 이용할 수 있다
+- context는 변할 수 없지만 '+' 연산자를 사용해서 element를 추가할 수 있다
+- 코루틴은 Job으로 표현되고, Job은 코루틴의 생명주기, 취소, 부모-자식 관계를 담당한다
+- CoroutineScope 인터페이스는 CoroutineContext만을 프로퍼티로 갖는다
+- scope와 context는 실질적으로 같지만, 사용 목적이 다르다
+
+```kotlin
+fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext,
+    // ...
+): Job
+```
+
+- launch()는 CoroutineContext를 인자로 가지는 CoroutineScope의 함수이다
+- launch()는 scope의 context와 인자로 받은 context를 '+' 연산자를 사용해서 병합한다
+  (두 context의 element에 대한 합집합, 인자로 받은 context의 element가 우선이 된다)
+- 병합된 context는 새 코루틴을 실행하고, 새 코루틴의 부모 context가 된다
+- 새 코루틴은 자식 Job 인스턴스를 생성하고 자식 context를 정의한다(부모 context + 자식 Job)
+
+![scope_context](./image/scope_context.png)
+
+- CoroutineScope 수신객체의 목적은 새로운 코루틴이 시작되는 scope를 참조하는 것이다
+- CoroutineScope의 context는 새로운 코루틴의 부모가 되는 Job을 포함한다
+- CoroutineContext 매개변수의 목적은 scope의 context에 추가적인 element를 overriding하는 것이다
+- 관례적으로 CoroutineContext 매개변수에 Job을 전달하지 않는다(부모-자식 관계를 깨기 때문에)
+
+```kotlin
+import kotlinx.coroutines.*
+
+fun main() = runBlocking<Unit> {
+    val request = launch {
+        // GlobalScope에서 실행된 코루틴은 부모 scope에 독립적으로 동작한다
+        GlobalScope.launch {
+            println("job1: I run in GlobalScope and execute independently!")
+            delay(1000)
+            println("job1: I am not affected by cancellation of the request")
+        }
+        // 부모-자식 관계가 없는 새로운 Job을 전달함으로 부모 scope에 독립적으로 동작한다
+        launch(Job()) {
+            delay(100)
+            println("job2: I am not a child of the request coroutine")
+            delay(1000)
+            println("job2: I am not affected by cancellation of the request")
+        }
+        // 부모 context에서 생성한 자식 Job을 사용하여 부모-자식 관계를 성립한다
+        launch {
+            delay(100)
+            println("job3: I am a child of the request coroutine")
+            delay(1000)
+            println("job3: I will not execute this line if my parent request is cancelled")
+        }
+    }
+    delay(500)
+    request.cancel()
+    delay(1000)
+    println("main: Who has survived request cancellation?")
+}
+
+/*
+job1: I run in GlobalScope and execute independently!
+job2: I am not a child of the request coroutine
+job3: I am a child of the request coroutine
+job1: I am not affected by cancellation of the request
+job2: I am not affected by cancellation of the request
+main: Who has survived request cancellation?
+*/
+```
+
+- launch() 블럭 안에 있는 코드는 CoroutineScope가 수신객체로 정의된다
+- suspend 함수는 코루틴 안에서 실행되는 함수이므로 coroutineContext를 가지고 있다
+
+```kotlin
+fun CoroutineScope.launch(
+    // ...
+    block: suspend CoroutineScope.() -> Unit
+): Job
+```
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlin.coroutines.*
+
+fun main() = runBlocking<Unit> {
+    println("$coroutineContext")
+    launch { 
+        println("$coroutineContext")
+        scopeCheck(this)
+    }
+}
+
+suspend fun scopeCheck(scope: CoroutineScope) {
+    println("$coroutineContext")
+    println(scope.coroutineContext === coroutineContext)
+}
+
+/*
+[CoroutineId(1), "coroutine#1":BlockingCoroutine{Active}@4f2410ac, BlockingEventLoop@722c41f4]
+[CoroutineId(2), "coroutine#2":StandaloneCoroutine{Active}@4dcbadb4, BlockingEventLoop@722c41f4]
+[CoroutineId(2), "coroutine#2":StandaloneCoroutine{Active}@4dcbadb4, BlockingEventLoop@722c41f4]
+true
+*/
+```
 
 
 
@@ -227,11 +333,11 @@ coroutineContext.cancelChildren()
 ```
 
 - cancel() 
-  - 함수를 호출한 컨텍스트를 포함하여 모든 자식 코루틴의 Job을 취소시킨다
-  - 더 이상 컨텍스트를 사용하여 코루틴을 실행할 수 없다
+  - 함수를 호출한 context를 포함하여 모든 자식 코루틴의 Job을 취소시킨다
+  - 더 이상 context를 사용하여 코루틴을 실행할 수 없다
 - cancelChildren() 
-  - 함수를 호출한 컨텍스트를 제외하고 모든 자식 코루틴의 Job을 취소시킨다
-  - 계속해서 컨텍스트를 사용하여 코루틴을 실행할 수 있다
+  - 함수를 호출한 context를 제외하고 모든 자식 코루틴의 Job을 취소시킨다
+  - 계속해서 context를 사용하여 코루틴을 실행할 수 있다
 
 ### Cancellation points
 
@@ -518,7 +624,7 @@ fun <T> startTaskAsync(
 
 - DSL 메서드는 helper 메서드를 이용하고 dispatcher를 명시적으로 지정한다
 - 코루틴 코드가 알맞는 dispatcher에서 실행되는지 분명하게 알 수 있다(함수 이름이 dispatcher를 나타낸다)
-- 두 코루틴이 같은 dispatcher를 공유한다면, 코루틴 머신이 컨텍스트 스위칭 없이 같은 스레드에서 실행시킨다
+- 두 코루틴이 같은 dispatcher를 공유한다면, 코루틴 머신이 context 스위칭 없이 같은 스레드에서 실행시킨다
 
 ```kotlin
 fun CoroutineScope.uiJob(block: suspend CoroutineScope.() -> Unit) {
