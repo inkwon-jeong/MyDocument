@@ -101,6 +101,91 @@ webView.addJavascriptInterface(WebAppInterface(this), "Android")
 </script>
 ```
 
+### 앱 예시 코드
+
+#### MainActivity.kt
+
+```kotlin
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.webkit.WebView
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        webView = findViewById(R.id.webview)
+        webView.settings.javaScriptEnabled = true
+        webView.addJavascriptInterface(WebAppInterface(this),  "Android")
+        webView.loadUrl("file:///android_asset/index.html")
+    }
+}
+```
+
+#### WebAppInterface.kt
+
+```kotlin
+import android.content.Context
+import android.webkit.JavascriptInterface
+import android.widget.Toast
+
+class WebAppInterface(
+    private val context: Context
+) {
+
+    @JavascriptInterface
+    fun showToast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+#### activity_main.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
+#### index.html
+
+```html
+<html>
+	<script type="text/javascript">
+        function showAndroidToast(toast) {
+            Android.showToast(toast);
+        }
+    </script>
+	<body>
+		<input type="button" value="자바스크립트" onclick="showAndroidToast('Hello Android!')">
+	</body>
+</html>
+```
+
+#### 실행화면
+
+![webview_javascript](./image/webview_javascript.png)
+
 
 
 ## 페이지 탐색 처리
