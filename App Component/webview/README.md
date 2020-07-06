@@ -6,8 +6,8 @@
 
 ```xml
 <manifest ... >
-	<uses-permission android:name="android.permission.INTERNET" />
-	...
+  <uses-permission android:name="android.permission.INTERNET" />
+  ...
 </manifest>
 ```
 
@@ -15,7 +15,7 @@
 
 ```xml
 <WebView
-	android:id="@+id/webview"
+  android:id="@+id/webview"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
 />
@@ -71,10 +71,10 @@ myWebView.settings.javaScriptEnabled = true
 /** Instantiate the interface and set the context  */
 class WebAppInterface(private val mContext: Context) {
 
- 	/** Show a toast from the web page  */
+  /** Show a toast from the web page  */
   @JavascriptInterface
   fun showToast(toast: String) {
-  	Toast.makeText(mContext, toast, Toast.LENGTH_SHORT).show()
+    Toast.makeText(mContext, toast, Toast.LENGTH_SHORT).show()
   }
 }
 ```
@@ -95,8 +95,8 @@ webView.addJavascriptInterface(WebAppInterface(this), "Android")
 <input type="button" value="Say hello" onClick="showAndroidToast('Hello Android!')" />
 
 <script type="text/javascript">
-	function showAndroidToast(toast) {
-  	Android.showToast(toast);
+  function showAndroidToast(toast) {
+    Android.showToast(toast);
   }
 </script>
 ```
@@ -171,14 +171,14 @@ class WebAppInterface(
 
 ```html
 <html>
-	<script type="text/javascript">
-  	function showAndroidToast(toast) {
-    	Android.showToast(toast);
+  <script type="text/javascript">
+    function showAndroidToast(toast) {
+      Android.showToast(toast);
     }
   </script>
-	<body>
-		<input type="button" value="자바스크립트" onclick="showAndroidToast('Hello Android!')">
-	</body>
+  <body>
+    <input type="button" value="자바스크립트" onclick="showAndroidToast('Hello Android!')">
+  </body>
 </html>
 ```
 
@@ -199,16 +199,16 @@ class WebAppInterface(
 ```kotlin
 private class MyWebViewClient : WebViewClient() {
 
-	override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-  	if (Uri.parse(url).host == "www.example.com") {
-    // This is my web site, so do not override; let my WebView load the page
-    	return false
+  override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+    if (Uri.parse(url).host == "www.example.com") {
+      // This is my web site, so do not override; let my WebView load the page
+      return false
     }
     // Otherwise, the link is not for a page on my site, so launch another Activity that handles URLs
     Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-    	startActivity(this)
+      startActivity(this)
     }
-    	return true
+    return true
   }
 }
 ```
@@ -228,14 +228,14 @@ myWebView.webViewClient = MyWebViewClient()
 
 ```kotlin
 override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-	// Check if the key event was the Back button and if there's history
-	if (keyCode == KeyEvent.KEYCODE_BACK && myWebView.canGoBack()) {
-  	myWebView.goBack()
+  // Check if the key event was the Back button and if there's history
+  if (keyCode == KeyEvent.KEYCODE_BACK && myWebView.canGoBack()) {
+    myWebView.goBack()
     return true
   }
   // If it wasn't the Back key or there's no web page history, bubble up to the default
   // system behavior (probably exit the activity)
-	return super.onKeyDown(keyCode, event)
+  return super.onKeyDown(keyCode, event)
 }
 ```
 
