@@ -184,9 +184,15 @@ class WebAppInterface(
 
 #### 실행화면
 
-<img src="./image/webview_javascript.png" alt="webview_javascript" width="300px" align="left"/>
+<p>
+  <img src="./image/webview_javascript.png" alt="webview_javascript" width="300" align="left"/>
+</p>
 
-<br>
+
+
+  
+
+
 
 ## 페이지 탐색 처리
 
