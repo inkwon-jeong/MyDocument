@@ -184,7 +184,7 @@ class WebAppInterface(
 
 #### 실행화면
 
-![webview_javascript](./image/webview_javascript.png)
+<img src="./image/webview_javascript.png" alt="webview_javascript" width="300px" align="left"/>
 
 
 
