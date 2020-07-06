@@ -91,7 +91,7 @@ webView.addJavascriptInterface(WebAppInterface(this), "Android")
 
 #### 자바스크립트
 
-```javascript
+```html
 <input type="button" value="Say hello" onClick="showAndroidToast('Hello Android!')" />
 
 <script type="text/javascript">
@@ -172,10 +172,10 @@ class WebAppInterface(
 ```html
 <html>
 	<script type="text/javascript">
-        function showAndroidToast(toast) {
-            Android.showToast(toast);
-        }
-    </script>
+  	function showAndroidToast(toast) {
+    	Android.showToast(toast);
+    }
+  </script>
 	<body>
 		<input type="button" value="자바스크립트" onclick="showAndroidToast('Hello Android!')">
 	</body>
