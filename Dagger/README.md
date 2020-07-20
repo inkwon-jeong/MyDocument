@@ -898,8 +898,8 @@ public class MainActivity extends AppCompatActivity {
 @MainActivityScope
 public interface MainActivityComponent {
   
-  // RandomUserAdapter getRandomUserAdapter();
-  // RandomUsersApi getRandomUserService();
+  	// RandomUserAdapter getRandomUserAdapter();
+  	// RandomUsersApi getRandomUserService();
     void injectMainActivity(MainActivity mainActivity);
 
 }
@@ -928,8 +928,8 @@ public class MainActivity extends AppCompatActivity {
                 .mainActivityModule(new MainActivityModule(this))
                 .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
                 .build();
-    // randomUsersApi = mainActivityComponent.getRandomUserService();
-    // mAdapter = mainActivityComponent.getRandomUserAdapter();
+    		// randomUsersApi = mainActivityComponent.getRandomUserService();
+    		// mAdapter = mainActivityComponent.getRandomUserAdapter();
         mainActivityComponent.injectMainActivity(this);
         ....
   }
