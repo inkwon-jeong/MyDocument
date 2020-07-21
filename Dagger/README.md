@@ -110,6 +110,15 @@ public String extractName(HouseClass house) {
 
 - 모듈 안에서 dependency를 생성하는 메서드를 나타낸다
 
+### @Binds
+
+- 인터페이스를 제공할 때 어떤 구현 클래스가 필요한지를 나타낸다
+- abstract 메서드에서만 사용된다
+
+### @BindsInstance
+
+- 컴포넌트 빌더내의 메소드나 컴포넌트 팩토리내의 파라미터로 객체를 전달한다
+
 ### @Scope
 
 - 컴포넌트와 연결된 객체의 생명주기 범위이다
