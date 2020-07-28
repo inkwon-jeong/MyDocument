@@ -64,8 +64,8 @@
 
 ```kotlin
 interface House {
-    fun prepareForWar();
-    fun reportForWar();
+    fun prepareForWar()
+    fun reportForWar()
 }
 ```
 
@@ -110,13 +110,13 @@ class War { // Dependant
     private val boltons: Boltons // Dependency
   
   	init {
-    		starks = Starks()
-        boltons = Boltons()
+    	    starks = Starks()
+            boltons = Boltons()
       
-      	starks.prepareForWar()
-        starks.reportForWar()
-        boltons.prepareForWar()
-        starks.reportForWar()
+      	    starks.prepareForWar()
+            starks.reportForWar()
+            boltons.prepareForWar()
+            starks.reportForWar()
     }
 }
 ```
@@ -127,7 +127,7 @@ class War { // Dependant
 
 ```kotlin
 class War( // DI - getting dependencies from else where via constructor
-		private val starks: Starks,
+	private val starks: Starks,
   	private val boltons: Boltons
 ) {
     fun prepare() {
@@ -238,15 +238,15 @@ class BattleOfBastards {
 
 ```kotlin
 class Cash {
-		init {
-      	// do something
+    init {
+        // do something
     }
 }
 ```
 
 ```kotlin
 class Soldiers {
-		init {
+    init {
       	// do something
     }
 }
@@ -561,8 +561,8 @@ interface RandomUserComponent {
 ```kotlin
 class MainActivity : AppCompatActivity() {
   
-  	lateinit var randomUsersApi: RandomUsersApi
-  	lateinit var picasso: Picasso
+    lateinit var randomUsersApi: RandomUsersApi
+    lateinit var picasso: Picasso
   	...
   	
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -788,8 +788,8 @@ class MainActivity : AppCompatActivity() {
 @MainActivityScope
 interface MainActivityComponent {
   
-  	// fun getRandomUserAdapter(): RandomUserAdapter
-  	// fun getRandomUserService(): RandomUsersApi
+    // fun getRandomUserAdapter(): RandomUserAdapter
+    // fun getRandomUserService(): RandomUsersApi
     fun injectMainActivity(mainActivity: MainActivity)
 
 }
@@ -817,8 +817,8 @@ class MainActivity : AppCompatActivity() {
                 .mainActivityModule(MainActivityModule(this))
                 .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
                 .build()
-    		// randomUsersApi = mainActivityComponent.getRandomUserService();
-    		// mAdapter = mainActivityComponent.getRandomUserAdapter();
+    	// randomUsersApi = mainActivityComponent.getRandomUserService();
+    	// mAdapter = mainActivityComponent.getRandomUserAdapter();
         mainActivityComponent.injectMainActivity(this)
         ...
   }
