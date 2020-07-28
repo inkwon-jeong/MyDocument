@@ -109,14 +109,14 @@ class War { // Dependant
     private val starks: Starks // Dependency
     private val boltons: Boltons // Dependency
   
-  	init {
-    	    starks = Starks()
-            boltons = Boltons()
+    init {
+        starks = Starks()
+        boltons = Boltons()
       
-      	    starks.prepareForWar()
-            starks.reportForWar()
-            boltons.prepareForWar()
-            starks.reportForWar()
+      	starks.prepareForWar()
+        starks.reportForWar()
+        boltons.prepareForWar()
+        starks.reportForWar()
     }
 }
 ```
@@ -127,8 +127,8 @@ class War { // Dependant
 
 ```kotlin
 class War( // DI - getting dependencies from else where via constructor
-	private val starks: Starks,
-  	private val boltons: Boltons
+    private val starks: Starks,
+    private val boltons: Boltons
 ) {
     fun prepare() {
         starks.prepareForWar()
@@ -188,8 +188,8 @@ class Starks @Inject constructor() : House {
 
 ```kotlin
 class War @Inject constructor(
-		private val starks: Starks,
-  	private val boltons: Boltons
+    private val starks: Starks,
+    private val boltons: Boltons
 ) {
 
     fun prepare(){
@@ -256,8 +256,8 @@ class Soldiers {
 
 @Module //The module
 class BraavosModule(
-  	val cash: Cash,
-  	val soldiers: Soldiers
+    val cash: Cash,
+    val soldiers: Soldiers
 ) {
     @Provides //Provides cash dependency
     fun provideCash(): Cash {
@@ -493,9 +493,9 @@ class OkHttpClientModule {
     @Provides
     fun httpLoggingInterceptor(): HttpLoggingInterceptor {
         val httpLoggingInterceptor =
-        		HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
-            		Timber.i(message)
-        		})
+            HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
+                Timber.i(message)
+            })
         httpLoggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
         return httpLoggingInterceptor
     }
@@ -510,7 +510,7 @@ class OkHttpClientModule {
 ```kotlin
 @Module
 class ContextModule(
-  	val context: Context
+    val context: Context
 ) {
   
     @Provides
@@ -715,7 +715,7 @@ interface MainActivityComponent {
 ```kotlin
 @Module
 class MainActivityModule(
-  	private val mainActivity: MainActivity
+    private val mainActivity: MainActivity
 ) {
 
     @Provides
@@ -736,7 +736,7 @@ class RandomUserApplication : Application() {
     //add application name in Manifest file
     private lateinit var randomUserApplicationComponent: RandomUserComponent
   
-  	companion object {
+    companion object {
       	fun get(activity: Activity): RandomUserApplication {
           	return (activity as RandomUserApplication).application
         }
@@ -765,10 +765,10 @@ class RandomUserApplication : Application() {
 class MainActivity : AppCompatActivity() {
 	...
   override fun onCreate(savedInstanceState: Bundle?) {
-    val mainActivityComponent = DaggerMainActivityComponent.builder()
-               .mainActivityModule(MainActivityModule(this))
-               .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
-               .build()
+      val mainActivityComponent = DaggerMainActivityComponent.builder()
+          .mainActivityModule(MainActivityModule(this))
+          .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
+          .build()
     randomUsersApi = mainActivityComponent.getRandomUserService()
     mAdapter = mainActivityComponent.getRandomUserAdapter()
     ...
