@@ -62,45 +62,39 @@
 
 ## Example
 
-```java
-public interface House {
-
-    void prepareForWar();
-
-    void reportForWar();
-
+```kotlin
+interface House {
+    fun prepareForWar();
+    fun reportForWar();
 }
 ```
 
-```java
-public class Starks implements House {
+```kotlin
+class Starks : House {
 
-    @Override
-    public void prepareForWar() {
+    override fun prepareForWar() {
         //do something
-        System.out.println(this.getClass().getSimpleName()+" prepared for war");
+        println(this::class.java.simpleName + " prepared for war")
     }
 
-    @Override
-    public void reportForWar() {
+    override fun reportForWar() {
         //do something
-        System.out.println(this.getClass().getSimpleName()+" reporting..");
+        println(this::class.java.simpleName + " reporting..")
     }
 }
 ```
 
-```java
-public class Boltons implements House {
-    @Override
-    public void prepareForWar() {
+```kotlin
+class Boltons : House {
+   
+    override fun prepareForWar() {
         //do something
-        System.out.println(this.getClass().getSimpleName()+" prepared for war");
+        println(this::class.java.simpleName + " prepared for war")
     }
 
-    @Override
-    public void reportForWar() {
+    override fun reportForWar() {
         //do something
-        System.out.println(this.getClass().getSimpleName()+" reporting..");
+        println(this::class.java.simpleName + " reporting..")
     }
 }
 ```
@@ -109,23 +103,21 @@ public class Boltons implements House {
 
 ### Without Dependency Injection
 
-```java
-public class War { // Dependant
+```kotlin
+class War { // Dependant
 
-    private Starks starks; // Dependency
-
-    private Boltons boltons; // Dependency
-
-    public War(){
-        starks = new Starks();
-        boltons = new Boltons();
-
-        starks.prepareForWar();
-        starks.reportForWar();
-        boltons.prepareForWar();
-        starks.reportForWar();
+    private val starks: Starks // Dependency
+    private val boltons: Boltons // Dependency
+  
+  	init {
+    		starks = Starks()
+        boltons = Boltons()
+      
+      	starks.prepareForWar()
+        starks.reportForWar()
+        boltons.prepareForWar()
+        starks.reportForWar()
     }
-
 }
 ```
 
@@ -133,138 +125,109 @@ public class War { // Dependant
 
 ### With Dependency Injection
 
-```java
-public class War {
-
-    private Starks starks;
-    private Boltons boltons;
-    
-    //DI - getting dependencies from else where via constructor
-    public War(Starks starks, Boltons bolton){
-        this.starks = starks;
-        this.boltons = bolton;
+```kotlin
+class War( // DI - getting dependencies from else where via constructor
+		private val starks: Starks,
+  	private val boltons: Boltons
+) {
+    fun prepare() {
+        starks.prepareForWar()
+        boltons.prepareForWar()
     }
 
-    public void prepare(){
-        starks.prepareForWar();
-        boltons.prepareForWar();
+    fun report() {
+        starks.reportForWar()
+        boltons.reportForWar()
+    }
+}
+```
+
+```kotlin
+class BattleOfBastards {
+
+    fun main(args: Array<String>) {
+        val starks = Starks()
+        val boltons = Boltons()
+
+        val war = War(starks, boltons) // Dependency Injection
+        war.prepare()
+        war.report()
+    }
+}
+```
+
+
+
+### Adding @Inject, @Component Annotation
+
+```kotlin
+class Boltons @Inject constructor() : House {
+
+    override fun prepareForWar() {
+        println(this::class.java.simpleName + " prepared for war")
     }
 
-    public void report(){
-        starks.reportForWar();
-        boltons.reportForWar();
+    override fun reportForWar() {
+        println(this::class.java.simpleName + " reporting..")
+    }
+}
+```
+
+```kotlin
+class Starks @Inject constructor() : House {
+
+    override fun prepareForWar() {
+        println(this::class.java.simpleName + " prepared for war")
+    }
+
+    override fun reportForWar() {
+        println(this::class.java.simpleName + " reporting..")
+    }
+}
+```
+
+```kotlin
+class War @Inject constructor(
+		private val starks: Starks,
+  	private val boltons: Boltons
+) {
+
+    fun prepare(){
+        starks.prepareForWar()
+        boltons.prepareForWar()
+    }
+
+    fun report(){
+        starks.reportForWar()
+        boltons.reportForWar()
     }
 
 }
 ```
 
 ```kotlin
-public class BattleOfBastards {
-
-    public static void main(String[] args){
-
-        Starks starks = new Starks();
-        Boltons boltons = new Boltons();
-
-        War war = new War(starks,boltons); // Dependency Injection
-        war.prepare();
-        war.report();
-    }
-}
-```
-
-
-
-### Adding @Inject, @Component Annotation
-
-```java
-public class Boltons implements House {
-
-   @Inject
-   public Boltons(){
-    }
-
-    @Override
-    public void prepareForWar() {
-        System.out.println(this.getClass().getSimpleName()+" prepared for war");
-    }
-
-    @Override
-    public void reportForWar() {
-        System.out.println(this.getClass().getSimpleName()+" reporting..");
-    }
-}
-```
-
-```java
-public class Starks implements House {
-
-    @Inject //Dagger 2
-    public Starks(){
-    }
-
-    @Override
-    public void prepareForWar() {
-        System.out.println(this.getClass().getSimpleName()+" prepared for war");
-    }
-
-    @Override
-    public void reportForWar() {
-        System.out.println(this.getClass().getSimpleName()+" reporting..");
-    }
-}
-```
-
-```java
-public class War {
-
-    private Starks starks;
-
-    private Boltons boltons;
-
-    @Inject
-    public War(Starks starks, Boltons bolton){
-        this.starks = starks;
-        this.boltons = bolton;
-    }
-
-    public void prepare(){
-        starks.prepareForWar();
-        boltons.prepareForWar();
-    }
-
-    public void report(){
-        starks.reportForWar();
-        boltons.reportForWar();
-    }
-
-}
-```
-
-```java
 @Component
 interface BattleComponent {
-    War getWar();
+    fun getWar(): War
 }
 ```
 
-```java
-public class BattleOfBastards {
+```kotlin
+class BattleOfBastards {
 
-    public static void main(String[] args){
+    fun main(args: Array<String>){
 //        Mannual DI
-//        Starks starks = new Starks();
-//        Boltons boltons = new Boltons();
-//        War war = new War(starks,boltons);
-//        war.prepare();
-//        war.report();
+//        val starks = Starks()
+//        val boltons = Boltons()
+//        val war = War(starks, boltons)
+//        war.prepare()
+//        war.report()
 
 //      Using Dagger 2
-        BattleComponent component = DaggerBattleComponent.create();
-        War war = component.getWar();
-        war.prepare();
-        war.report();
-
+        val component = DaggerBattleComponent.create()
+        val war = component.getWar()
+        war.prepare()
+        war.report()
     }
 }
 ```
@@ -273,71 +236,66 @@ public class BattleOfBastards {
 
 ### Adding @Inject, @Component Annotation
 
-```java
-public class Cash {
-    public Cash(){
-        //do something
+```kotlin
+class Cash {
+		init {
+      	// do something
     }
 }
 ```
 
-```java
-public class Soldiers {
-    public Soldiers(){
-      //do something
+```kotlin
+class Soldiers {
+		init {
+      	// do something
     }
 }
 ```
 
-```java
+```kotlin
 
 @Module //The module
-public class BraavosModule {
-    Cash cash;
-    Soldiers soldiers;
-
-    public BraavosModule(Cash cash, Soldiers soldiers){
-        this.cash=cash;
-        this.soldiers=soldiers;
-    }
-
+class BraavosModule(
+  	val cash: Cash,
+  	val soldiers: Soldiers
+) {
     @Provides //Provides cash dependency
-    Cash provideCash(){
-        return cash;
+    fun provideCash(): Cash {
+        return cash
     }
 
     @Provides //provides soldiers dependency
-    Soldiers provideSoldiers(){
-        return soldiers;
+    fun provideSoldiers(): Soldiers {
+        return soldiers
     }
 
 }
 ```
 
-```java
-@Component(modules = BraavosModule.class)
+```kotlin
+@Component(modules = BraavosModule::class)
 interface BattleComponent {
-    War getWar();
-    Cash getCash();
-    Soldiers getSoldiers();
+    fun getWar(): War
+    fun getCash(): Cash
+    fun getSoldiers(): Soldiers
 }
 ```
 
-```java
-public class BattleOfBastards {
-    public static void main(String[] args){
+```kotlin
+class BattleOfBastards {
+    fun main(args: Array<String>){
 
-        Cash cash = new Cash();
-        Soldiers soldiers = new Soldiers();
+        val cash = Cash()
+        val soldiers = Soldiers()
 
-        BattleComponent component = DaggerBattleComponent
-                .builder().braavosModule(new BraavosModule(cash, soldiers)).build();
-        War war = component.getWar();
-        war.prepare();
-        war.report();
+        val component = DaggerBattleComponent
+                .builder().braavosModule(BraavosModule(cash, soldiers)).build()
+        val war = component.getWar()
+        war.prepare()
+        war.report()
         //using cash and soldiers
-        component.getCash();
-        component.getSoldiers();
+        component.getCash()
+        component.getSoldiers()
 
     }
 }
@@ -363,53 +321,49 @@ public class BattleOfBastards {
 
 ### MainActivity
 
-```java
-@Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        initViews();
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_main)
+    initViews()
 
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        Gson gson = gsonBuilder.create();
+    val gsonBuilder = GsonBuilder()
+    val gson = gsonBuilder.create()
 
-        Timber.plant(new Timber.DebugTree());
+    Timber.plant(Timber.DebugTree())
 
-        File cacheFile = new File(this.getCacheDir(), "HttpCache");
-        cacheFile.mkdirs();
+    val cacheFile = File(this.cacheDir, "HttpCache")
+    cacheFile.mkdirs();
 
-        Cache cache = new Cache(cacheFile, 10 * 1000 * 1000); //10 MB
+    val cache = Cache(cacheFile, 10 * 1000 * 1000) //10 MB
 
-        HttpLoggingInterceptor httpLoggingInterceptor = new
-                HttpLoggingInterceptor(new HttpLoggingInterceptor.Logger() {
-            @Override
-            public void log(@NonNull String message) {
-                Timber.i(message);
-            }
-        });
+    val httpLoggingInterceptor =
+        HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
+            Timber.i(message)
+        })
 
-        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+    httpLoggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
 
 
-        OkHttpClient okHttpClient = new OkHttpClient()
-                .newBuilder()
-                .cache(cache)
-                .addInterceptor(httpLoggingInterceptor)
-                .build();
+    val okHttpClient = OkHttpClient()
+            .newBuilder()
+            .cache(cache)
+            .addInterceptor(httpLoggingInterceptor)
+            .build()
 
-        OkHttp3Downloader okHttpDownloader = new OkHttp3Downloader(okHttpClient);
+    val okHttpDownloader = OkHttp3Downloader(okHttpClient)
 
-        picasso = new Picasso.Builder(this).downloader(okHttpDownloader).build();
+    picasso = Picasso.Builder(this).downloader(okHttpDownloader).build()
 
-        retrofit = new Retrofit.Builder()
-                .client(okHttpClient)
-                .baseUrl("https://randomuser.me/")
-                .addConverterFactory(GsonConverterFactory.create(gson))
-                .build();
+    retrofit = Retrofit.Builder()
+            .client(okHttpClient)
+            .baseUrl("https://randomuser.me/")
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
 
-        populateUsers();
+    populateUsers()
 
-    }
+}
 ```
 
 
@@ -431,11 +385,14 @@ dependencies {
 
 #### RandomUserComponent
 
-```java
+```kotlin
 @Component
-public interface RandomUserComponent {
-    RandomUsersApi getRandomUserService();
-    Picasso getPicasso();
+interface RandomUserComponent {
+  
+    fun getRandomUserService(): RandomUsersApi
+  
+    fun getPicasso(): Picasso
+  
 }
 ```
 
@@ -447,34 +404,34 @@ public interface RandomUserComponent {
 
 #### RandomUsersModule
 
-```java
+```kotlin
 @Module
-public class RandomUsersModule {
+class RandomUsersModule {
 
     @Provides
-    public RandomUsersApi randomUsersApi(Retrofit retrofit){
-        return retrofit.create(RandomUsersApi.class);
+    fun randomUsersApi(retrofit: Retrofit): RandomUsersApi {
+        return retrofit.create(RandomUsersApi::class.java)
     }
 
     @Provides
-    public Retrofit retrofit(OkHttpClient okHttpClient,
-                             GsonConverterFactory gsonConverterFactory, Gson gson){
-        return new Retrofit.Builder()
+    fun retrofit(okHttpClient : OkHttpClient,
+                             gsonConverterFactory: GsonConverterFactory, gson: Gson) : Retrofit {
+        return Retrofit.Builder()
                 .client(okHttpClient)
                 .baseUrl("https://randomuser.me/")
                 .addConverterFactory(gsonConverterFactory)
-                .build();
+                .build()
     }
 
     @Provides
-    public Gson gson(){
-        GsonBuilder gsonBuilder = new GsonBuilder();
-        return gsonBuilder.create();
+    fun gson(): Gson {
+        val gsonBuilder = GsonBuilder()
+        return gsonBuilder.create()
     }
 
     @Provides
-    public GsonConverterFactory gsonConverterFactory(Gson gson){
-        return GsonConverterFactory.create(gson);
+    fun gsonConverterFactory(gson: Gson): GsonConverterFactory {
+        return GsonConverterFactory.create(gson)
     }
 
 
@@ -485,20 +442,20 @@ public class RandomUsersModule {
 
 #### PicassoModule
 
-```java
+```kotlin
 @Module
-public class PicassoModule {
+class PicassoModule {
 
     @Provides
-    public Picasso picasso(Context context, OkHttp3Downloader okHttp3Downloader){
-        return new Picasso.Builder(context).
+    fun picasso(context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
+        return Picasso.Builder(context).
                 downloader(okHttp3Downloader).
-                build();
+                build()
     }
 
     @Provides
-    public OkHttp3Downloader okHttp3Downloader(OkHttpClient okHttpClient){
-        return new OkHttp3Downloader(okHttpClient);
+    fun okHttp3Downloader(okHttpClient: OkHttpClient): OkHttp3Downloader {
+        return OkHttp3Downloader(okHttpClient)
     }
 
 }
@@ -508,41 +465,39 @@ public class PicassoModule {
 
 #### OkHttpClientModule
 
-```java
+```kotlin
 @Module
-public class OkHttpClientModule {
+class OkHttpClientModule {
 
     @Provides
-    public OkHttpClient okHttpClient(Cache cache, HttpLoggingInterceptor httpLoggingInterceptor){
-        return new OkHttpClient()
+    fun okHttpClient(cache: Cache, httpLoggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
+        return OkHttpClient()
                 .newBuilder()
                 .cache(cache)
                 .addInterceptor(httpLoggingInterceptor)
-                .build();
+                .build()
     }
 
     @Provides
-    public Cache cache(File cacheFile){
-        return new Cache(cacheFile, 10 * 1000 * 1000); //10 MB
+    fun cache(cacheFile: File): Cache {
+        return Cache(cacheFile, 10 * 1000 * 1000) //10 MB
     }
 
     @Provides
-    public File file(Context context){
-        File file = new File(context.getCacheDir(), "HttpCache");
-        file.mkdirs();
-        return file;
+    fun file(context: Context): File {
+        val file = File(context.cacheDir, "HttpCache")
+        file.mkdirs()
+        return file
     }
 
     @Provides
-    public HttpLoggingInterceptor httpLoggingInterceptor(){
-        HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor(new HttpLoggingInterceptor.Logger() {
-            @Override
-            public void log(String message) {
-                Timber.d(message);
-            }
-        });
-        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-        return httpLoggingInterceptor;
+    fun httpLoggingInterceptor(): HttpLoggingInterceptor {
+        val httpLoggingInterceptor =
+        		HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
+            		Timber.i(message)
+        		})
+        httpLoggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
+        return httpLoggingInterceptor
     }
 
 }
@@ -552,18 +507,14 @@ public class OkHttpClientModule {
 
 #### ContextModule
 
-```java
+```kotlin
 @Module
-public class ContextModule {
-
-    Context context;
-
-    public ContextModule(Context context){
-        this.context = context;
-    }
-
+class ContextModule(
+  	val context: Context
+) {
+  
     @Provides
-    public Context context(){ return context.getApplicationContext(); }
+    fun context(): Context { return context.applicationContext }
 }
 ```
 
@@ -575,18 +526,18 @@ public class ContextModule {
 - OkHttpClientModule은 ContextModule이 필요하다
 - PicassoModule은 OkHttpClientModule과 ContextModule이 필요하다(OkHttpClientModule에 ContextModule이 포함되어 있다)
 
-```java
+```kotlin
 //in RandomUsersModule.java
-@Module(includes = OkHttpClientModule.class)
-public class RandomUsersModule { ... }
+@Module(includes = OkHttpClientModule::class)
+class RandomUsersModule { ... }
 
 //in OkHttpClientModule.java
-@Module(includes = ContextModule.class)
-public class OkHttpClientModule { ... }
+@Module(includes = ContextModule::class)
+class OkHttpClientModule { ... }
 
 //in PicassoModule.java
-@Module(includes = OkHttpClientModule.class)
-public class PicassoModule { ... }
+@Module(includes = OkHttpClientModule::class)
+class PicassoModule { ... }
 ```
 
 
@@ -595,11 +546,11 @@ public class PicassoModule { ... }
 
 - 컴포넌트와 모듈을 연결시켜준다
 
-```java
-@Component(modules = {RandomUsersModule.class, PicassoModule.class})
-public interface RandomUserComponent {
-    RandomUsersApi getRandomUserService();
-    Picasso getPicasso();
+```kotlin
+@Component(modules = [RandomUsersModule::class, PicassoModule::class])
+interface RandomUserComponent {
+    fun getRandomUserService(): RandomUsersApi
+    fun getPicasso(): Picasso
 }
 ```
 
@@ -607,22 +558,23 @@ public interface RandomUserComponent {
 
 ### Step 6: Build it
 
-```java
-public class MainActivity extends AppCompatActivity {
-  RandomUsersApi randomUsersApi;
-  Picasso picasso;
-  ....
-  @Override
-    protected void onCreate(Bundle savedInstanceState) {
+```kotlin
+class MainActivity : AppCompatActivity() {
+  
+  	lateinit var randomUsersApi: RandomUsersApi
+  	lateinit var picasso: Picasso
+  	...
+  	
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main)
         ...
-        RandomUserComponent daggerRandomUserComponent = DaggerRandomUserComponent.builder()
-                .contextModule(new ContextModule(this))
-                .build();
-        picasso = daggerRandomUserComponent.getPicasso();
-        randomUsersApi = daggerRandomUserComponent.getRandomUserService();
-        populateUsers();
+        val daggerRandomUserComponent = DaggerRandomUserComponent.builder()
+                .contextModule(ContextModule(this))
+                .build()
+        picasso = daggerRandomUserComponent.getPicasso()
+        randomUsersApi = daggerRandomUserComponent.getRandomUserService()
+        populateUsers()
         ...
     }
   ...
@@ -635,42 +587,43 @@ public class MainActivity extends AppCompatActivity {
 
 - Picasso와 Retrofit의 인스턴스를 여러번 생성하지 않고 하나의 인스턴스로 사용하게 한다
 
-```java
+```kotlin
 @Scope
-@Retention(RetentionPolicy.CLASS)
-public @interface RandomUserApplicationScope {}
+@MustBeDocumented
+@Retention(value = AnnotationRetention.RUNTIME)
+annotation class RandomUserApplicationScope
 ```
 
-```java
+```kotlin
 @RandomUserApplicationScope
-@Component(modules = {RandomUsersModule.class, PicassoModule.class})
-public interface RandomUserComponent { ...}
+@Component(modules = [RandomUsersModule::class, PicassoModule::class])
+interface RandomUserComponent { ... }
 
-@Module(includes = OkHttpClientModule.class)
-public class PicassoModule {
+@Module(includes = OkHttpClientModule::class)
+class PicassoModule {
   ...
     @RandomUserApplicationScope
     @Provides
-    public Picasso picasso(Context context, OkHttp3Downloader okHttp3Downloader){
-        return new Picasso.Builder(context).
+    fun picasso(context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
+        return Picasso.Builder(context).
                 downloader(okHttp3Downloader).
-                build();
+                build()
     }
   ...
 }
 
-@Module(includes = OkHttpClientModule.class)
-public class RandomUsersModule {
+@Module(includes = OkHttpClientModule::class)
+class RandomUsersModule {
   ...
     @RandomUserApplicationScope
     @Provides
-    public Retrofit retrofit(OkHttpClient okHttpClient,
-                             GsonConverterFactory gsonConverterFactory, Gson gson){
-        return new Retrofit.Builder()
+    fun retrofit(okHttpClient: OkHttpClient,
+                             gsonConverterFactory: GsonConverterFactory, gson: Gson): Retrofit{
+        return Retrofit.Builder()
                 .client(okHttpClient)
                 .baseUrl("https://randomuser.me/")
                 .addConverterFactory(gsonConverterFactory)
-                .build();
+                .build()
     }
     ...
 }
@@ -682,51 +635,52 @@ public class RandomUsersModule {
 
 - 같은 타입의 인스턴스를 반환하는 @Provides 메서드가 여러 개일 때 구분할 수 있게 해준다
 
-```java
+```kotlin
+@Retention(AnnotationRetention.BINARY)
 @Qualifier
-public @interface ApplicationContext {}
+annotation class ApplicationContext
 
+@Retention(AnnotationRetention.BINARY)
 @Qualifier
-public @interface ActivityContext {}
+annotation class ActivityContext
 ```
 
-```java
-
+```kotlin
 @Module
-public class ContextModule {
+class ContextModule {
 ....
     @ApplicationContext
     @RandomUserApplicationScope
     @Provides
-    public Context context(){ return context.getApplicationContext(); }
+    context(): Context { return context.applicationContext }
 }
 ```
 
-```java
-@Module(includes = ContextModule.class)
-public class OkHttpClientModule {
+```kotlin
+@Module(includes = ContextModule::class)
+class OkHttpClientModule {
 ...
     @Provides
     @RandomUserApplicationScope
-    public File file(@ApplicationContext Context context){
-        File file = new File(context.getCacheDir(), "HttpCache");
-        file.mkdirs();
-        return file;
+    fun file(@ApplicationContext context: Context): File {
+        val file = new File(context.cacheDir, "HttpCache")
+        file.mkdirs()
+        return file
     }
-....
+...
 }
 
-@Module(includes = OkHttpClientModule.class)
-public class PicassoModule {
+@Module(includes = OkHttpClientModule::class)
+class PicassoModule {
 
     @RandomUserApplicationScope
     @Provides
-    public Picasso picasso(@ApplicationContext Context context, OkHttp3Downloader okHttp3Downloader){
-        return new Picasso.Builder(context).
+    fun picasso(@ApplicationContext context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
+        return Picasso.Builder(context).
                 downloader(okHttp3Downloader).
-                build();
+                build()
     }
-  ....
+  	...
 }
 ```
 
@@ -734,24 +688,23 @@ public class PicassoModule {
 
 ### Step 7: Creating Activity level scope
 
-```java
+```kotlin
 @Scope
-public @interface MainActivityScope {}
+@MustBeDocumented
+@Retention(value = AnnotationRetention.RUNTIME)
+annotation class MainActivityScope
 ```
 
 
 
 ### Step 8: Creating Component for MainActivity
 
-```java
-@Component(modules = MainActivityModule.class, dependencies = RandomUserComponent.class)
+```kotlin
+@Subcomponent(modules = MainActivityModule::class, dependencies = RandomUserComponent::class)
 @MainActivityScope
-public interface MainActivityComponent {
-
-    RandomUserAdapter getRandomUserAdapter();
-
-    RandomUsersApi getRandomUserService();
-
+interface MainActivityComponent {
+    fun getRandomUserAdapter(): RandomUserAdapter
+    fun getRandomUserService(): RandomUsersApi
 }
 ```
 
@@ -759,20 +712,16 @@ public interface MainActivityComponent {
 
 ### Step 9: Creating MainActivity Module
 
-```java
+```kotlin
 @Module
-public class MainActivityModule {
-
-    private final MainActivity mainActivity;
-
-    public MainActivityModule(MainActivity mainActivity) {
-        this.mainActivity = mainActivity;
-    }
+class MainActivityModule(
+  	private val mainActivity: MainActivity
+) {
 
     @Provides
     @MainActivityScope
-    public RandomUserAdapter randomUserAdapter(Picasso picasso){
-        return new RandomUserAdapter(mainActivity, picasso);
+    fun randomUserAdapter(picasso: Picasso): RandomUserAdapter {
+        return RandomUserAdapter(mainActivity, picasso)
     }
 }
 ```
@@ -781,28 +730,29 @@ public class MainActivityModule {
 
 ### Step 10: Creating Application Class
 
-```java
-public class RandomUserApplication extends Application {
+```kotlin
+class RandomUserApplication : Application() {
 
     //add application name in Manifest file
-    private RandomUserComponent randomUserApplicationComponent;
-
-    public static RandomUserApplication get(Activity activity){
-        return (RandomUserApplication) activity.getApplication();
+    private lateinit var randomUserApplicationComponent: RandomUserComponent
+  
+  	companion object {
+      	fun get(activity: Activity): RandomUserApplication {
+          	return (activity as RandomUserApplication).application
+        }
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        Timber.plant(new Timber.DebugTree());
+    override fun onCreate() {
+        super.onCreate()
+        Timber.plant(Timber.DebugTree())
 
         randomUserApplicationComponent = DaggerRandomUserComponent.builder()
-                .contextModule(new ContextModule(this))
-                .build();
+                .contextModule(ContextModule(this))
+                .build()
     }
 
-    public RandomUserComponent getRandomUserApplicationComponent(){
-        return randomUserApplicationComponent;
+    fun getRandomUserApplicationComponent(): RandomUserComponent {
+        return randomUserApplicationComponent
     }
 }
 ```
@@ -811,19 +761,17 @@ public class RandomUserApplication extends Application {
 
 ### Step 11: Modifying MainActivity
 
-```java
-public class MainActivity extends AppCompatActivity {
-...
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    ....
-    MainActivityComponent mainActivityComponent = DaggerMainActivityComponent.builder()
-               .mainActivityModule(new MainActivityModule(this))
+```kotlin
+class MainActivity : AppCompatActivity() {
+	...
+  override fun onCreate(savedInstanceState: Bundle?) {
+    val mainActivityComponent = DaggerMainActivityComponent.builder()
+               .mainActivityModule(MainActivityModule(this))
                .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
-               .build();
-    randomUsersApi = mainActivityComponent.getRandomUserService();
-    mAdapter = mainActivityComponent.getRandomUserAdapter();
-    ....
+               .build()
+    randomUsersApi = mainActivityComponent.getRandomUserService()
+    mAdapter = mainActivityComponent.getRandomUserAdapter()
+    ...
   }
 
 }
@@ -835,14 +783,14 @@ public class MainActivity extends AppCompatActivity {
 
 #### Modifying MainActivityComponent
 
-```java
-@Component(modules = MainActivityModule.class, dependencies = RandomUserComponent.class)
+```kotlin
+@Component(modules = MainActivityModule::class, dependencies = RandomUserComponent::class)
 @MainActivityScope
-public interface MainActivityComponent {
+interface MainActivityComponent {
   
-  // RandomUserAdapter getRandomUserAdapter();
-  // RandomUsersApi getRandomUserService();
-    void injectMainActivity(MainActivity mainActivity);
+  	// fun getRandomUserAdapter(): RandomUserAdapter
+  	// fun getRandomUserService(): RandomUsersApi
+    fun injectMainActivity(mainActivity: MainActivity)
 
 }
 ```
@@ -851,34 +799,29 @@ public interface MainActivityComponent {
 
 #### Modifying MainActivity
 
-```java
-public class MainActivity extends AppCompatActivity {
-  ....
+```kotlin
+class MainActivity : AppCompatActivity() {
+  
     @Inject
-    RandomUsersApi randomUsersApi;
+    lateinit var randomUsersApi: RandomUsersApi
 
     @Inject
-    RandomUserAdapter mAdapter;
-  ....
+    lateinit var mAdapter: RandomUserAdapter
+  	...
     
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        .....
-        MainActivityComponent mainActivityComponent = DaggerMainActivityComponent.builder()
-                .mainActivityModule(new MainActivityModule(this))
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val mainActivityComponent = DaggerMainActivityComponent.builder()
+                .mainActivityModule(MainActivityModule(this))
                 .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
-                .build();
-    	// randomUsersApi = mainActivityComponent.getRandomUserService();
-    	// mAdapter = mainActivityComponent.getRandomUserAdapter();
-        mainActivityComponent.injectMainActivity(this);
-        ....
+                .build()
+    		// randomUsersApi = mainActivityComponent.getRandomUserService();
+    		// mAdapter = mainActivityComponent.getRandomUserAdapter();
+        mainActivityComponent.injectMainActivity(this)
+        ...
   }
 }
 ```
-
-
-
-
 
