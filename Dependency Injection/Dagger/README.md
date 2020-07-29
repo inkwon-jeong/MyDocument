@@ -29,8 +29,8 @@
 
 ```kotlin
 class Repository @Inject constructor(
-  private val localDataSource: LocalDataSource,
-  private val remoteDataSource: RemoteDataSource
+    private val localDataSource: LocalDataSource,
+    private val remoteDataSource: RemoteDataSource
 )
 ```
 
@@ -40,8 +40,8 @@ class Repository @Inject constructor(
 
 ```kotlin
 class MainActivity : AppCompatActivity() {
-  @Inject lateinit var viewModel: ViewModel
-  ...
+    @Inject lateinit var viewModel: ViewModel
+    ...
 }
 ```
 
@@ -55,8 +55,8 @@ class MainActivity : AppCompatActivity() {
 ```kotlin
 @Component
 interface AppComponent {
-  fun inject(activity: MainActivity)
-  fun userManager(): UserManager
+    fun inject(activity: MainActivity)
+    fun userManager(): UserManager
 }
 ```
 
@@ -69,10 +69,10 @@ interface AppComponent {
 ```kotlin
 @Subcomponent
 interface ActivityComponent {
-  @Subcomponent.Factory
-  interface Factory {
-    fun create(): ActivityComponent
-  }
+    @Subcomponent.Factory
+    interface Factory {
+      fun create(): ActivityComponent
+    }
 }
 
 @Module(subcomponents = ActivityComponent::class)
@@ -80,7 +80,7 @@ class SubcomponentsModule
 
 @Component(modules = SubcomponentsModule::class)
 interface AppComponent {
-  fun activityComponent(): ActivityComponent.Factory
+    fun activityComponent(): ActivityComponent.Factory
 }
 ```
 
@@ -93,16 +93,16 @@ interface AppComponent {
 ```kotlin
 @Module
 abstract class NetworkModule {
-  @Binds
-  abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
+    @Binds
+    abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
   
-  @Provides
-  fun retrofit(): Retrofit {
-    return Retrofit.Builder()
+    @Provides
+    fun retrofit(): Retrofit {
+        return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-  }
+    }
 }
 ```
 
@@ -123,9 +123,10 @@ abstract class NetworkModule {
 ```kotlin
 @Component
 interface AppComponent {
-  @Component.Factory {
-    fun create(@BindsInstance context: Context): AppComponent
-  }
+    @Component.Factory
+    interface Factory {
+        fun create(@BindsInstance context: Context): AppComponent
+    }
 }
 ```
 
@@ -165,14 +166,244 @@ annotation class RemoteDataSource
 
 @Module
 abstract class DataSourceModule {
-  @Binds
-  @LocalDataSource
-  abstract fun localDataSource(dataSource: LocalDataSource): DataSource
+    @Binds
+    @LocalDataSource
+    abstract fun localDataSource(dataSource: LocalDataSource): DataSource
   
-  @Binds
-  @RemoteDataSource
-  abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
+    @Binds
+    @RemoteDataSource
+    abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
 }
+```
+
+
+
+## Dagger Dependency Injection
+
+### Application Graph
+
+![application_graph](../image/application_graph.png)
+
+### @Inject Annotation
+
+```kotlin
+// UserRepository
+class UserRepository @Inject constructor(
+    private val localDataSource: DataSource,
+    private val remoteDataSource: DataSource
+) { ... }
+
+// UserLocalDataSource
+class UserLocalDataSource @Inject constructor(
+    private val context: Context
+) : DataSource { ... }
+
+// UserRemoteDataSource
+class UserRemoteDataSource @Inject constructor(
+    private val loginService: LoginRetrofitService
+) : DataSource { ... }
+
+// LoginViewModel
+class LoginViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) { ... }
+
+// LoginActivity
+class LoginActivity: Activity() {
+    @Inject lateinit var loginViewModel: LoginViewModel
+    ...
+}
+```
+
+
+
+### @Module Annotation
+
+```kotlin
+@Module
+abstract class DataModule {
+    @Provides
+    fun retrofit(): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://example.com")
+            .build()
+            .create(LoginService::class.java)
+    }
+  
+    @Binds
+    abstract fun userLocalDataSoruce(dataSource: UserLocalDataSource): DataSource
+  
+    @Binds
+    abstract fun userRemoteDataSoruce(dataSource: UserRemoteDataSource): DataSource
+}
+```
+
+
+
+### @Component Annotation
+
+```kotlin
+@Component(modules = [DataModule::class])
+interface AppComponent {
+    @Component.Factory
+    interface Factory {
+        fun create(@BindsInstance context: Context): AppComponent
+    }
+    
+    fun inject(activity: LoginActivity)
+}
+```
+
+
+
+### Injecting the graph into an Activity
+
+```kotlin
+class MyApplication : Application() {
+    val appComponent: AppComponent by lazy {
+        DaggerAppComponent.factory().create(applictionContext)
+    }
+}
+```
+
+```kotlin
+class LoginActivity: Activity() {
+    @Inject lateinit var loginViewModel: LoginViewModel
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        (application as MyApplication).appComponent.inject(this)
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
+        ...
+    }
+}
+```
+
+
+
+### Using Scopes
+
+```kotlin
+@Singleton
+@Component(modules = [DataModule::class])
+interface AppComponent { ... }
+```
+
+```kotlin
+@Singleton
+class UserRepository @Inject constructor(
+    private val localDataSource: DataSource,
+    private val remoteDataSource: DataSource
+) { ... }
+```
+
+
+
+### Subcomponents
+
+```kotlin
+@Subcomponent
+interface LoginComponent {
+    @Subcomponent.Factory
+    interface Factory {
+        fun create(): LoginComponent
+    }
+    
+    fun inject(activity: LoginActivity)
+}
+```
+
+```kotlin
+@Module(subcomponents = [LoginComponent::class])
+class AppSubcomponents
+```
+
+```kotlin
+@Singleton
+@Component(modules = [DataModule::class, AppSubcomponents::class])
+interface AppComponent {
+    @Component.Factory
+    interface Factory {
+        fun create(@BindsInstance context: Context): AppComponent
+    }
+    
+//    fun inject(activity: LoginActivity)
+    fun loginComponent(): LoginComponent.Factory
+}
+```
+
+```kotlin
+class LoginActivity: Activity() {
+    @Inject lateinit var loginViewModel: LoginViewModel
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        (application as MyApplication).appComponent.loginComponent().create().inject(this)
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
+        ...
+    }
+}
+```
+
+
+
+### Scoping Subcomponents
+
+```kotlin
+@Scope
+@MustBeDocumented
+@Retention(value = AnnotationRetention.RUNTIME)
+annotation class ActivityScope
+```
+
+```kotlin
+@ActivityScope
+@Subcomponent
+interface LoginComponent { ... }
+```
+
+```kotlin
+@ActivityScope
+class LoginViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) { ... }
+```
+
+
+
+### @Qualifier Annotation
+
+```kotlin
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class UserLocalDataSource
+
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class UserRemoteDataSource
+```
+
+```kotlin
+@Module
+abstract class DataModule {  
+    ...
+  
+    @UserLocalDataSource
+    @Binds
+    abstract fun userLocalDataSoruce(dataSource: UserLocalDataSource): DataSource
+  
+    @UserRemoteDataSource
+    @Binds
+    abstract fun userRemoteDataSoruce(dataSource: UserRemoteDataSource): DataSource
+}
+```
+
+```kotlin
+@Singleton
+class UserRepository @Inject constructor(
+    @UserLocalDataSource private val localDataSource: DataSource,
+    @UserRemoteDataSource private val remoteDataSource: DataSource
+) { ... }
 ```
 
 
