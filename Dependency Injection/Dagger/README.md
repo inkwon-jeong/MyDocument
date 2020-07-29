@@ -22,35 +22,112 @@
 
 ### @Inject
 
-- @Inject annotation은 의존성 주입을 요청한다
-- 컴포넌트가 모듈로부터 객체를 생성하여 전달한다
+#### Class Constructor
+
+- @Inject 주석이 지정된 타입의 인스턴스를 어떻게 생성할 지 Dagger에 알려준다
+- 인스턴스를 생성하기 위해 필요한 dependency가 무엇인지 Dagger에 알려준다
+
+```kotlin
+class Repository @Inject constructor(
+  private val localDataSource: LocalDataSource,
+  private val remoteDataSource: RemoteDataSource
+)
+```
+
+#### Class Field
+
+- @Inject 주석이 지정된 타입의 인스턴스를 생성하여 필드에 주입한다
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+  @Inject lateinit var viewModel: ViewModel
+  ...
+}
+```
 
 ### @Component
 
-- 모듈을 이용하여 dependency를 생성하고, @Inject로 의존성 주입을 요청한 곳에 dependency의 인스턴스를 전달한다
-- Dependency를 요청 받고 중비하는 Dagger의 주된 역할을 담당한다
+- 컴포넌트는 컴파일 시 그래프를 생성하는데 필요한 정보를 Dagger에게 준다
+- 컴포넌트의 파라미터가 있는 메서드는 어떤 클래스가 주입을 요청하는지 나타낸다
+- 컴포넌트의 반환값이 있는 메서드는 해당 타입의 인스턴스를 생성한다
+
+
+```kotlin
+@Component
+interface AppComponent {
+  fun inject(activity: MainActivity)
+  fun userManager(): UserManager
+}
+```
 
 ### @Subcomponent
 
-- 컴포넌트는 계층 관계를 형성할 수 있다
-- @Inject로 주입을 요청 받으면 Subcomponent에서 먼저 dependency를 찾고, 없으면 부모 컴포넌트에서 찾는다
+- 서브 컴포넌트는 부모 컴포넌트의 그래프를 상속받는다
+- 따라서, 부모 컴포넌트가 제공하는 모든 객체를 서브 컴포넌트 역시 제공한다
+- 서브 컴포넌트의 객체는 부모 컴포넌트의 객체를 의존할 수 있다
+
+```kotlin
+@Subcomponent
+interface ActivityComponent {
+  @Subcomponent.Factory
+  interface Factory {
+    fun create(): ActivityComponent
+  }
+}
+
+@Module(subcomponents = ActivityComponent::class)
+class SubcomponentsModule
+
+@Component(modules = SubcomponentsModule::class)
+interface AppComponent {
+  fun activityComponent(): ActivityComponent.Factory
+}
+```
 
 ### @Module
 
-- 컴포넌트에 연결되어 dependency를 생성한다
+- 모듈은 해당 타입의 인스턴스를 어떻게 제공하는지 Dagger에 알려준다
+- @Inject로 주입할 수 없는 인스턴스(인터페이스, 외부 라이브러리 클래스)를 제공하기 위해 주로 사용된다
+- @Provides와 @Binds 주석을 이용하여 인스턴스를 제공한다
+
+```kotlin
+@Module
+abstract class NetworkModule {
+  @Binds
+  abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
+  
+  @Provides
+  fun retrofit(): Retrofit {
+    return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+  }
+}
+```
 
 ### @Provides
 
-- 모듈 안에서 dependency를 생성하는 메서드를 나타낸다
+- 주로 외부 라이브러리 클래스의 인스턴스를 제공하는데 사용된다
 
 ### @Binds
 
-- 인터페이스를 제공할 때 어떤 구현 클래스가 필요한지를 나타낸다
-- abstract 메서드에서만 사용된다
+- 주로 인터페이스의 인스턴스를 제공하는데 사용된다
+- @Binds 주석이 지정된 메서드는 abstract 메서드여야 한다
 
 ### @BindsInstance
 
-- 컴포넌트 빌더내의 메소드나 컴포넌트 팩토리내의 파라미터로 객체를 전달한다
+- 그래프 외부에서 생성된 객체를 제공하는데 사용된다
+- 주로 Context 객체를 제공하는데 사용된다
+
+```kotlin
+@Component
+interface AppComponent {
+  @Component.Factory {
+    fun create(@BindsInstance context: Context): AppComponent
+  }
+}
+```
 
 ### @Scope
 
@@ -58,770 +135,367 @@
 - 안드로이드에서는 주로 액티비티, 프래그먼트 등 화면의 생명주기와 맞추어 사용한다
 - 객체의 생명주기 동안 인스턴스를 유지한다(보통은 주입할 때마다 인스턴스를 생성한다)
 
-
-
-## Example
-
 ```kotlin
-interface House {
-    fun prepareForWar()
-    fun reportForWar()
-}
+@Scope
+@MustBeDocumented
+@Retention(value = AnnotationRetention.RUNTIME)
+annotation class ActivityScope
+
+@ActivityScope
+@Subcomponent
+interface ActivityComponent { ... }
+
+@ActivityScope
+class ViewModel @Inject constructor() { ... }
 ```
 
-```kotlin
-class Starks : House {
+### @Qualifier
 
-    override fun prepareForWar() {
-        //do something
-        println(this::class.java.simpleName + " prepared for war")
-    }
-
-    override fun reportForWar() {
-        //do something
-        println(this::class.java.simpleName + " reporting..")
-    }
-}
-```
+- Dagger는 여러 구현이 있는 타입의 주입을 요청할 때 어떻게 제공해야 하는지 알지 못한다
+- @Qualifier는 Dagger가 어떤 구현을 가지고 인스턴스를 제공해야 하는지 알려준다
 
 ```kotlin
-class Boltons : House {
-   
-    override fun prepareForWar() {
-        //do something
-        println(this::class.java.simpleName + " prepared for war")
-    }
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class LocalDataSource
 
-    override fun reportForWar() {
-        //do something
-        println(this::class.java.simpleName + " reporting..")
-    }
-}
-```
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class RemoteDataSource
 
-
-
-### Without Dependency Injection
-
-```kotlin
-class War { // Dependant
-
-    private val starks: Starks // Dependency
-    private val boltons: Boltons // Dependency
+@Module
+abstract class DataSourceModule {
+  @Binds
+  @LocalDataSource
+  abstract fun localDataSource(dataSource: LocalDataSource): DataSource
   
-    init {
-        starks = Starks()
-        boltons = Boltons()
-      
-      	starks.prepareForWar()
-        starks.reportForWar()
-        boltons.prepareForWar()
-        starks.reportForWar()
-    }
+  @Binds
+  @RemoteDataSource
+  abstract fun remoteDataSource(dataSource: RemoteDataSource): DataSource
 }
 ```
 
 
 
-### With Dependency Injection
-
-```kotlin
-class War( // DI - getting dependencies from else where via constructor
-    private val starks: Starks,
-    private val boltons: Boltons
-) {
-    fun prepare() {
-        starks.prepareForWar()
-        boltons.prepareForWar()
-    }
-
-    fun report() {
-        starks.reportForWar()
-        boltons.reportForWar()
-    }
-}
-```
-
-```kotlin
-class BattleOfBastards {
-
-    fun main(args: Array<String>) {
-        val starks = Starks()
-        val boltons = Boltons()
-
-        val war = War(starks, boltons) // Dependency Injection
-        war.prepare()
-        war.report()
-    }
-}
-```
-
-
-
-### Adding @Inject, @Component Annotation
-
-```kotlin
-class Boltons @Inject constructor() : House {
-
-    override fun prepareForWar() {
-        println(this::class.java.simpleName + " prepared for war")
-    }
-
-    override fun reportForWar() {
-        println(this::class.java.simpleName + " reporting..")
-    }
-}
-```
-
-```kotlin
-class Starks @Inject constructor() : House {
-
-    override fun prepareForWar() {
-        println(this::class.java.simpleName + " prepared for war")
-    }
-
-    override fun reportForWar() {
-        println(this::class.java.simpleName + " reporting..")
-    }
-}
-```
-
-```kotlin
-class War @Inject constructor(
-    private val starks: Starks,
-    private val boltons: Boltons
-) {
-
-    fun prepare(){
-        starks.prepareForWar()
-        boltons.prepareForWar()
-    }
-
-    fun report(){
-        starks.reportForWar()
-        boltons.reportForWar()
-    }
-
-}
-```
-
-```kotlin
-@Component
-interface BattleComponent {
-    fun getWar(): War
-}
-```
-
-```kotlin
-class BattleOfBastards {
-
-    fun main(args: Array<String>){
-//        Mannual DI
-//        val starks = Starks()
-//        val boltons = Boltons()
-//        val war = War(starks, boltons)
-//        war.prepare()
-//        war.report()
-
-//      Using Dagger 2
-        val component = DaggerBattleComponent.create()
-        val war = component.getWar()
-        war.prepare()
-        war.report()
-    }
-}
-```
-
-
-
-### Adding @Inject, @Component Annotation
-
-```kotlin
-class Cash {
-    init {
-        // do something
-    }
-}
-```
-
-```kotlin
-class Soldiers {
-    init {
-      	// do something
-    }
-}
-```
-
-```kotlin
-
-@Module //The module
-class BraavosModule(
-    val cash: Cash,
-    val soldiers: Soldiers
-) {
-    @Provides //Provides cash dependency
-    fun provideCash(): Cash {
-        return cash
-    }
-
-    @Provides //provides soldiers dependency
-    fun provideSoldiers(): Soldiers {
-        return soldiers
-    }
-
-}
-```
-
-```kotlin
-@Component(modules = BraavosModule::class)
-interface BattleComponent {
-    fun getWar(): War
-    fun getCash(): Cash
-    fun getSoldiers(): Soldiers
-}
-```
-
-```kotlin
-class BattleOfBastards {
-    fun main(args: Array<String>){
-
-        val cash = Cash()
-        val soldiers = Soldiers()
-
-        val component = DaggerBattleComponent
-                .builder().braavosModule(BraavosModule(cash, soldiers)).build()
-        val war = component.getWar()
-        war.prepare()
-        war.report()
-        //using cash and soldiers
-        component.getCash()
-        component.getSoldiers()
-
-    }
-}
-```
-
-
-
-## Kickstarter Project
+## CodeLab
 
 ### Dependency Graph
 
-- 초록색으로 칠해진 클래스가 Top-Level Dependency이다
-
-![dependency_graph](./image/dependency_graph.jpeg)
+![dependency_graph](./image/dependency_graph.png)
 
 
 
-### All Components and Modules
-
-- 프로젝트에 사용되는 모든 컴포넌트와 모듈의 그래프
-
-![components_modules](./image/components_modules.png)
-
-### MainActivity
-
-```kotlin
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_main)
-    initViews()
-
-    val gsonBuilder = GsonBuilder()
-    val gson = gsonBuilder.create()
-
-    Timber.plant(Timber.DebugTree())
-
-    val cacheFile = File(this.cacheDir, "HttpCache")
-    cacheFile.mkdirs();
-
-    val cache = Cache(cacheFile, 10 * 1000 * 1000) //10 MB
-
-    val httpLoggingInterceptor =
-        HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
-            Timber.i(message)
-        })
-
-    httpLoggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
-
-
-    val okHttpClient = OkHttpClient()
-            .newBuilder()
-            .cache(cache)
-            .addInterceptor(httpLoggingInterceptor)
-            .build()
-
-    val okHttpDownloader = OkHttp3Downloader(okHttpClient)
-
-    picasso = Picasso.Builder(this).downloader(okHttpDownloader).build()
-
-    retrofit = Retrofit.Builder()
-            .client(okHttpClient)
-            .baseUrl("https://randomuser.me/")
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
-
-    populateUsers()
-
-}
-```
-
-
-
-### Step 1: Setup Dagger
+### Installation
 
 ```groovy
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
+
+...
+
 dependencies {
-    implementation 'com.google.dagger:dagger:2.13'
-    annotationProcessor 'com.google.dagger:dagger-compiler:2.13'
+    ...
+    def dagger_version = "2.27"
+    implementation "com.google.dagger:dagger:$dagger_version"
+    kapt "com.google.dagger:dagger-compiler:$dagger_version"
 }
 ```
 
 
 
-### Step 2: Creating Component
+### @Inject Annotation
 
-- 컴포넌트는 Top-Level dependency를 전달한다
+```kotlin
+// Storage
+class SharedPreferencesStorage @Inject constructor(
+  context: Context
+) : Storage { ... }
 
-#### RandomUserComponent
+// UserManager
+class UserManager @Inject constructor(
+  private val storage: Storage
+) { ... }
+
+// UserRepository
+class UserDataRepository @Inject constructor(
+  private val userManager: UserManager
+) { ... }
+
+// RegistrationViewModel
+class RegistrationViewModel @Inject constructor(
+  val userManager: UserManager
+) { ... }
+
+// LoginViewModel
+class LoginViewModel @Inject constructor(
+  private val userManager: UserManager
+) { ... }
+  
+// MainViewModel
+class MainViewModel @Inject constructor(
+  private val userDataRepository: UserDataRepository
+) { ... }
+
+// SettingsViewModel
+class SettingsViewModel @Inject constructor(
+  private val userDataRepository: UserDataRepository,
+  private val userManager: UserManager
+) { ... }
+
+// EnterDetailsViewModel
+class EnterDetailsViewModel @Inject constructor() { ... }
+
+// RegistrationActivity
+class RegistrationActivity : AppCompatActivity() {
+	@Inject lateinit var registrationViewModel: RegistrationViewModel
+  ...
+}
+
+// LoginActivity
+class LoginActivity : AppCompatActivity() {
+	@Inject lateinit var loginViewModel: LoginViewModel
+  ...
+}
+
+// MainActivity
+class MainActivity : AppCompatActivity() {
+	@Inject lateinit var mainViewModel: MainViewModel
+  ...
+}
+  
+// SettingsActivity
+class SettingsActivity : AppCompatActivity() {
+	@Inject lateinit var settingsViewModel: SettingsViewModel
+  ...
+}
+
+// EnterDetailsFragment
+class EnterDetailsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  ...
+}
+
+// TermsAndConditionsFragment
+class TermsAndConditionsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+  ...
+}
+```
+
+
+
+### @Component Annotation
 
 ```kotlin
 @Component
-interface RandomUserComponent {
-  
-    fun getRandomUserService(): RandomUsersApi
-  
-    fun getPicasso(): Picasso
-  
+interface AppComponent {
+  fun inject(activity: RegistrationActivity)
+  fun inject(activity: LoginActivity)
+  fun inject(activity: MainActivity)
+  fun inject(activity: SettingsActivity)
+  fun inject(fragment: EnterDetailsFragment)
+  fun inject(fragment: TermsAndConditionsFragment)
 }
 ```
 
 
 
-### Step 3: Creating Modules
-
-- 모듈은 Top-Level dependency에 필요한 dependency를 전달한다
-
-#### RandomUsersModule
+### @Module, @Binds, @BindsInstance Annotation
 
 ```kotlin
 @Module
-class RandomUsersModule {
-
-    @Provides
-    fun randomUsersApi(retrofit: Retrofit): RandomUsersApi {
-        return retrofit.create(RandomUsersApi::class.java)
-    }
-
-    @Provides
-    fun retrofit(okHttpClient : OkHttpClient,
-                             gsonConverterFactory: GsonConverterFactory, gson: Gson) : Retrofit {
-        return Retrofit.Builder()
-                .client(okHttpClient)
-                .baseUrl("https://randomuser.me/")
-                .addConverterFactory(gsonConverterFactory)
-                .build()
-    }
-
-    @Provides
-    fun gson(): Gson {
-        val gsonBuilder = GsonBuilder()
-        return gsonBuilder.create()
-    }
-
-    @Provides
-    fun gsonConverterFactory(gson: Gson): GsonConverterFactory {
-        return GsonConverterFactory.create(gson)
-    }
-
-
+abstract class StorageModule {
+	@Binds
+	abstract fun provideStorage(storage: SharedPreferencesStorage): Storage
 }
 ```
 
-
-
-#### PicassoModule
-
 ```kotlin
-@Module
-class PicassoModule {
-
-    @Provides
-    fun picasso(context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
-        return Picasso.Builder(context).
-                downloader(okHttp3Downloader).
-                build()
-    }
-
-    @Provides
-    fun okHttp3Downloader(okHttpClient: OkHttpClient): OkHttp3Downloader {
-        return OkHttp3Downloader(okHttpClient)
-    }
-
-}
-```
-
-
-
-#### OkHttpClientModule
-
-```kotlin
-@Module
-class OkHttpClientModule {
-
-    @Provides
-    fun okHttpClient(cache: Cache, httpLoggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
-        return OkHttpClient()
-                .newBuilder()
-                .cache(cache)
-                .addInterceptor(httpLoggingInterceptor)
-                .build()
-    }
-
-    @Provides
-    fun cache(cacheFile: File): Cache {
-        return Cache(cacheFile, 10 * 1000 * 1000) //10 MB
-    }
-
-    @Provides
-    fun file(context: Context): File {
-        val file = File(context.cacheDir, "HttpCache")
-        file.mkdirs()
-        return file
-    }
-
-    @Provides
-    fun httpLoggingInterceptor(): HttpLoggingInterceptor {
-        val httpLoggingInterceptor =
-            HttpLoggingInterceptor(HttpLoggingInterceptor.Logger { message -> 
-                Timber.i(message)
-            })
-        httpLoggingInterceptor.level = HttpLoggingInterceptor.Level.BODY
-        return httpLoggingInterceptor
-    }
-
-}
-```
-
-
-
-#### ContextModule
-
-```kotlin
-@Module
-class ContextModule(
-    val context: Context
-) {
+@Component(modules = StorageModule::class)
+interface AppComponent {
+  @Component.Factory
+  interface Factory {
+    fun create(@BindsInstance context: Context): AppComponent
+  }
   
-    @Provides
-    fun context(): Context { return context.applicationContext }
+  fun inject(activity: RegistrationActivity)
+  fun inject(activity: LoginActivity)
+  fun inject(activity: MainActivity)
+  fun inject(activity: SettingsActivity)
+  fun inject(fragment: EnterDetailsFragment)
+  fun inject(fragment: TermsAndConditionsFragment)
 }
 ```
 
 
 
-### Step 4: Connecting all Modules
-
-- RandomUserModule은 OkHttpClientModule이 필요하다
-- OkHttpClientModule은 ContextModule이 필요하다
-- PicassoModule은 OkHttpClientModule과 ContextModule이 필요하다(OkHttpClientModule에 ContextModule이 포함되어 있다)
+### Injecting the graph into an Activity
 
 ```kotlin
-//in RandomUsersModule.java
-@Module(includes = OkHttpClientModule::class)
-class RandomUsersModule { ... }
-
-//in OkHttpClientModule.java
-@Module(includes = ContextModule::class)
-class OkHttpClientModule { ... }
-
-//in PicassoModule.java
-@Module(includes = OkHttpClientModule::class)
-class PicassoModule { ... }
-```
-
-
-
-### Step 5: Educating Component
-
-- 컴포넌트와 모듈을 연결시켜준다
-
-```kotlin
-@Component(modules = [RandomUsersModule::class, PicassoModule::class])
-interface RandomUserComponent {
-    fun getRandomUserService(): RandomUsersApi
-    fun getPicasso(): Picasso
+class MyApplication : Application() {
+  val appComponent: AppComponent by lazy {
+    DaggerAppComponent.factory().create(applictionContext)
+  }
 }
 ```
 
-
-
-### Step 6: Build it
-
 ```kotlin
-class MainActivity : AppCompatActivity() {
+class RegistrationActivity: AppCompatActivity() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
   
-    lateinit var randomUsersApi: RandomUsersApi
-    lateinit var picasso: Picasso
-  	...
-  	
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main)
-        ...
-        val daggerRandomUserComponent = DaggerRandomUserComponent.builder()
-                .contextModule(ContextModule(this))
-                .build()
-        picasso = daggerRandomUserComponent.getPicasso()
-        randomUsersApi = daggerRandomUserComponent.getRandomUserService()
-        populateUsers()
-        ...
-    }
-  ...
-}
-```
-
-
-
-#### @Scope Annotation
-
-- Picasso와 Retrofit의 인스턴스를 여러번 생성하지 않고 하나의 인스턴스로 사용하게 한다
-
-```kotlin
-@Scope
-@MustBeDocumented
-@Retention(value = AnnotationRetention.RUNTIME)
-annotation class RandomUserApplicationScope
-```
-
-```kotlin
-@RandomUserApplicationScope
-@Component(modules = [RandomUsersModule::class, PicassoModule::class])
-interface RandomUserComponent { ... }
-
-@Module(includes = OkHttpClientModule::class)
-class PicassoModule {
-  ...
-    @RandomUserApplicationScope
-    @Provides
-    fun picasso(context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
-        return Picasso.Builder(context).
-                downloader(okHttp3Downloader).
-                build()
-    }
-  ...
-}
-
-@Module(includes = OkHttpClientModule::class)
-class RandomUsersModule {
-  ...
-    @RandomUserApplicationScope
-    @Provides
-    fun retrofit(okHttpClient: OkHttpClient,
-                             gsonConverterFactory: GsonConverterFactory, gson: Gson): Retrofit{
-        return Retrofit.Builder()
-                .client(okHttpClient)
-                .baseUrl("https://randomuser.me/")
-                .addConverterFactory(gsonConverterFactory)
-                .build()
-    }
-    ...
-}
-```
-
-
-
-#### @Qualifier Annotation
-
-- 같은 타입의 인스턴스를 반환하는 @Provides 메서드가 여러 개일 때 구분할 수 있게 해준다
-
-```kotlin
-@Retention(AnnotationRetention.BINARY)
-@Qualifier
-annotation class ApplicationContext
-
-@Retention(AnnotationRetention.BINARY)
-@Qualifier
-annotation class ActivityContext
-```
-
-```kotlin
-@Module
-class ContextModule {
-....
-    @ApplicationContext
-    @RandomUserApplicationScope
-    @Provides
-    context(): Context { return context.applicationContext }
-}
-```
-
-```kotlin
-@Module(includes = ContextModule::class)
-class OkHttpClientModule {
-...
-    @Provides
-    @RandomUserApplicationScope
-    fun file(@ApplicationContext context: Context): File {
-        val file = new File(context.cacheDir, "HttpCache")
-        file.mkdirs()
-        return file
-    }
-...
-}
-
-@Module(includes = OkHttpClientModule::class)
-class PicassoModule {
-
-    @RandomUserApplicationScope
-    @Provides
-    fun picasso(@ApplicationContext context: Context, okHttp3Downloader: OkHttp3Downloader): Picasso {
-        return Picasso.Builder(context).
-                downloader(okHttp3Downloader).
-                build()
-    }
-  	...
-}
-```
-
-
-
-### Step 7: Creating Activity level scope
-
-```kotlin
-@Scope
-@MustBeDocumented
-@Retention(value = AnnotationRetention.RUNTIME)
-annotation class MainActivityScope
-```
-
-
-
-### Step 8: Creating Component for MainActivity
-
-```kotlin
-@Subcomponent(modules = MainActivityModule::class, dependencies = RandomUserComponent::class)
-@MainActivityScope
-interface MainActivityComponent {
-    fun getRandomUserAdapter(): RandomUserAdapter
-    fun getRandomUserService(): RandomUsersApi
-}
-```
-
-
-
-### Step 9: Creating MainActivity Module
-
-```kotlin
-@Module
-class MainActivityModule(
-    private val mainActivity: MainActivity
-) {
-
-    @Provides
-    @MainActivityScope
-    fun randomUserAdapter(picasso: Picasso): RandomUserAdapter {
-        return RandomUserAdapter(mainActivity, picasso)
-    }
-}
-```
-
-
-
-### Step 10: Creating Application Class
-
-```kotlin
-class RandomUserApplication : Application() {
-
-    //add application name in Manifest file
-    private lateinit var randomUserApplicationComponent: RandomUserComponent
-  
-    companion object {
-      	fun get(activity: Activity): RandomUserApplication {
-          	return (activity as RandomUserApplication).application
-        }
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        Timber.plant(Timber.DebugTree())
-
-        randomUserApplicationComponent = DaggerRandomUserComponent.builder()
-                .contextModule(ContextModule(this))
-                .build()
-    }
-
-    fun getRandomUserApplicationComponent(): RandomUserComponent {
-        return randomUserApplicationComponent
-    }
-}
-```
-
-
-
-### Step 11: Modifying MainActivity
-
-```kotlin
-class MainActivity : AppCompatActivity() {
-	...
   override fun onCreate(savedInstanceState: Bundle?) {
-      val mainActivityComponent = DaggerMainActivityComponent.builder()
-          .mainActivityModule(MainActivityModule(this))
-          .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
-          .build()
-    randomUsersApi = mainActivityComponent.getRandomUserService()
-    mAdapter = mainActivityComponent.getRandomUserAdapter()
+    (application as MyApplication).appComponent.inject(this)
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_registration)
     ...
   }
+}
 
+class EnterDetailsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  
+  override fun onAttach(context: Context) {
+  	super.onAttach(context)
+  	(requireActivity().application as MyApplication).appComponent.inject(this)
+	}
+  ...
+}
+
+class TermsAndConditionsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+  
+  override fun onAttach(context: Context) {
+  	super.onAttach(context)
+  	(requireActivity().application as MyApplication).appComponent.inject(this)
+	}
+  ...
 }
 ```
 
 
 
-### Step 12: Using @Inject Annotation
-
-#### Modifying MainActivityComponent
+### Using Scopes
 
 ```kotlin
-@Component(modules = MainActivityModule::class, dependencies = RandomUserComponent::class)
-@MainActivityScope
-interface MainActivityComponent {
-  
-    // fun getRandomUserAdapter(): RandomUserAdapter
-    // fun getRandomUserService(): RandomUsersApi
-    fun injectMainActivity(mainActivity: MainActivity)
+@Singleton
+@Component(modules = StorageModule::class)
+interface AppComponent { ... }
+```
 
+```kotlin
+@Singleton
+class UserManager @Inject constructor(private val storage: Storage) {
+	...
 }
 ```
 
 
 
-#### Modifying MainActivity
+### Subcomponents
 
 ```kotlin
-class MainActivity : AppCompatActivity() {
-  
-    @Inject
-    lateinit var randomUsersApi: RandomUsersApi
-
-    @Inject
-    lateinit var mAdapter: RandomUserAdapter
-  	...
-    
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        val mainActivityComponent = DaggerMainActivityComponent.builder()
-                .mainActivityModule(MainActivityModule(this))
-                .randomUserComponent(RandomUserApplication.get(this).getRandomUserApplicationComponent())
-                .build()
-    	// randomUsersApi = mainActivityComponent.getRandomUserService();
-    	// mAdapter = mainActivityComponent.getRandomUserAdapter();
-        mainActivityComponent.injectMainActivity(this)
-        ...
+@Subcomponent
+interface RegistrationComponent {
+  @Subcomponent.Factory
+  interface Factory {
+    fun create(): RegistrationComponent
   }
+  
+  fun inject(activity: RegistrationActivity)
+  fun inject(fragment: EnterDetailsFragment)
+  fun inject(fragment: TermsAndConditionsFragment)
 }
 ```
+
+```kotlin
+@Module(subcomponents = RegistrationComponent::class)
+class AppSubcomponents
+```
+
+```kotlin
+@Singleton
+@Component(modules = [StorageModule::class, AppSubcomponents::class])
+interface AppComponent { 
+  @Component.Factory
+  interface Factory {
+    fun create(@BindsInstance context: Context): AppComponent
+  }
+  
+  fun registrationComponent(): RegistrationComponent.Factory
+  
+  fun inject(activity: LoginActivity)
+  fun inject(activity: MainActivity)
+  fun inject(activity: SettingsActivity)
+}
+```
+
+
+
+### Scoping Subcomponents
+
+```kotlin
+@Scope
+@MustBeDocumented
+@Retention(value = AnnotationRetention.RUNTIME)
+annotation class ActivityScope
+```
+
+```kotlin
+@ActivityScope
+@Subcomponent
+interface RegistrationComponent { ... }
+```
+
+```kotlin
+@ActivityScope
+class RegistrationViewModel @Inject constructor(val userManager: UserManager) {
+	...
+}
+```
+
+```kotlin
+class RegistrationActivity : AppCompatActivity() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+  lateinit var registrationComponent: RegistrationComponent
+
+	override fun onCreate(savedInstanceState: Bundle?) {
+//    (application as MyApplication).appComponent.inject(this)
+  	registrationComponent = (application as MyApplication).appComponent.registrationComponent().create() 
+  	registrationComponent.inject(this)
+
+  	super.onCreate(savedInstanceState)
+  	...
+	}
+	...
+}
+
+class EnterDetailsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  
+  override fun onAttach(context: Context) {
+  	super.onAttach(context)
+//    (requireActivity().application as MyApplication).appComponent.inject(this)
+  	(activity as RegistraionActivity).registrationComponent.inject(this)
+	}
+  ...
+}
+
+class TermsAndConditionsFragment : Fragment() {
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
+  
+  override fun onAttach(context: Context) {
+  	super.onAttach(context)
+//    (requireActivity().application as MyApplication).appComponent.inject(this)
+  	(activity as RegistraionActivity).registrationComponent.inject(this)
+	}
+  ...
+}
+```
+
+
 
