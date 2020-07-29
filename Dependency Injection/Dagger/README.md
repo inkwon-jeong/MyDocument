@@ -249,32 +249,32 @@ class EnterDetailsViewModel @Inject constructor() { ... }
 
 // RegistrationActivity
 class RegistrationActivity : AppCompatActivity() {
-	@Inject lateinit var registrationViewModel: RegistrationViewModel
+  @Inject lateinit var registrationViewModel: RegistrationViewModel
   ...
 }
 
 // LoginActivity
 class LoginActivity : AppCompatActivity() {
-	@Inject lateinit var loginViewModel: LoginViewModel
+  @Inject lateinit var loginViewModel: LoginViewModel
   ...
 }
 
 // MainActivity
 class MainActivity : AppCompatActivity() {
-	@Inject lateinit var mainViewModel: MainViewModel
+  @Inject lateinit var mainViewModel: MainViewModel
   ...
 }
   
 // SettingsActivity
 class SettingsActivity : AppCompatActivity() {
-	@Inject lateinit var settingsViewModel: SettingsViewModel
+  @Inject lateinit var settingsViewModel: SettingsViewModel
   ...
 }
 
 // EnterDetailsFragment
 class EnterDetailsFragment : Fragment() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
-	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  @Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
   ...
 }
 
@@ -308,8 +308,8 @@ interface AppComponent {
 ```kotlin
 @Module
 abstract class StorageModule {
-	@Binds
-	abstract fun provideStorage(storage: SharedPreferencesStorage): Storage
+  @Binds
+  abstract fun provideStorage(storage: SharedPreferencesStorage): Storage
 }
 ```
 
@@ -356,12 +356,12 @@ class RegistrationActivity: AppCompatActivity() {
 
 class EnterDetailsFragment : Fragment() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
-	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  @Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
   
   override fun onAttach(context: Context) {
-  	super.onAttach(context)
-  	(requireActivity().application as MyApplication).appComponent.inject(this)
-	}
+    super.onAttach(context)
+    (requireActivity().application as MyApplication).appComponent.inject(this)
+  }
   ...
 }
 
@@ -369,9 +369,9 @@ class TermsAndConditionsFragment : Fragment() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
   
   override fun onAttach(context: Context) {
-  	super.onAttach(context)
-  	(requireActivity().application as MyApplication).appComponent.inject(this)
-	}
+    super.onAttach(context)
+    (requireActivity().application as MyApplication).appComponent.inject(this)
+  }
   ...
 }
 ```
@@ -389,7 +389,7 @@ interface AppComponent { ... }
 ```kotlin
 @Singleton
 class UserManager @Inject constructor(private val storage: Storage) {
-	...
+  ...
 }
 ```
 
@@ -453,7 +453,7 @@ interface RegistrationComponent { ... }
 ```kotlin
 @ActivityScope
 class RegistrationViewModel @Inject constructor(val userManager: UserManager) {
-	...
+  ...
 }
 ```
 
@@ -462,26 +462,26 @@ class RegistrationActivity : AppCompatActivity() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
   lateinit var registrationComponent: RegistrationComponent
 
-	override fun onCreate(savedInstanceState: Bundle?) {
+  override fun onCreate(savedInstanceState: Bundle?) {
 //    (application as MyApplication).appComponent.inject(this)
-  	registrationComponent = (application as MyApplication).appComponent.registrationComponent().create() 
-  	registrationComponent.inject(this)
+    registrationComponent = (application as MyApplication).appComponent.registrationComponent().create() 
+    registrationComponent.inject(this)
 
-  	super.onCreate(savedInstanceState)
-  	...
-	}
-	...
+    super.onCreate(savedInstanceState)
+    ...
+  }
+  ...
 }
 
 class EnterDetailsFragment : Fragment() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
-	@Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
+  @Inject lateinit var enterDetailsViewModel: EnterDetailsViewModel
   
   override fun onAttach(context: Context) {
-  	super.onAttach(context)
+    super.onAttach(context)
 //    (requireActivity().application as MyApplication).appComponent.inject(this)
-  	(activity as RegistraionActivity).registrationComponent.inject(this)
-	}
+    (activity as RegistraionActivity).registrationComponent.inject(this)
+  }
   ...
 }
 
@@ -489,10 +489,10 @@ class TermsAndConditionsFragment : Fragment() {
   @Inject lateinit var registrationViewModel: RegistrationViewModel
   
   override fun onAttach(context: Context) {
-  	super.onAttach(context)
+    super.onAttach(context)
 //    (requireActivity().application as MyApplication).appComponent.inject(this)
-  	(activity as RegistraionActivity).registrationComponent.inject(this)
-	}
+    (activity as RegistraionActivity).registrationComponent.inject(this)
+  }
   ...
 }
 ```
