@@ -213,6 +213,11 @@ class LoginActivity: Activity() {
     @Inject lateinit var loginViewModel: LoginViewModel
     ...
 }
+
+// LoginViewModel
+class LoginViewModel(
+    @Inject private val userRepository: UserRepository
+) { ... }
 ```
 
 

@@ -442,3 +442,205 @@ class ExampleContentProvider : ContentProvider() {
 
 - 진입점이 ApplicationComponent에 설치되어 있으면 ApplicationContext를 사용하여 진입점을 검색한다
 - 진입점이 ActivityComponent에 설치되어 있으면 ActivityContext를 사용하여 진입점을 검색한다
+
+
+
+## Hilt ViewModel
+
+### App build.gradle
+
+```groovy
+dependencies {
+  ...
+  implementation "androidx.fragment:fragment-ktx:1.2.4"
+  implementation 'androidx.hilt:hilt-lifecycle-viewmodel:$hilt_jetpack_version'
+  kapt 'androidx.hilt:hilt-compiler:$hilt_jetpack_version'
+  kaptAndroidTest 'androidx.hilt:hilt-compiler:$hilt_jetpack_version'
+}
+```
+
+
+
+### @ViewModelInject Annotation
+
+```kotlin
+class RegistrationViewModel @ViewModelInject constructor(
+    val userManager: UserManager
+) : ViewModel() { ... }
+```
+
+
+
+### ViewModel Delegate Function
+
+```kotlin
+class RegistrationActivity : Activity() {
+//    @Inject lateinit var registrationViewModel: RegistrationViewModel
+    private val registrationViewModel: RegistrationViewModel by viewModels()
+}
+```
+
+```kotlin
+class RegistrationFragment : Activity() {
+//    @Inject lateinit var registrationViewModel: RegistrationViewModel
+    private val registrationViewModel: RegistrationViewModel by activityViewModels()
+}
+```
+
+
+
+## Hilt Dependency Injection
+
+### Application Graph
+
+![application_graph](../image/application_graph.png)
+
+### @Inject Annotation
+
+```kotlin
+// UserRepository
+class UserRepository @Inject constructor(
+    private val localDataSource: DataSource,
+    private val remoteDataSource: DataSource
+) { ... }
+
+// UserLocalDataSource
+class UserLocalDataSource @Inject constructor(
+    private val context: Context
+) : DataSource { ... }
+
+// UserRemoteDataSource
+class UserRemoteDataSource @Inject constructor(
+    private val loginService: LoginRetrofitService
+) : DataSource { ... }
+
+// LoginViewModel
+class LoginViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) { ... }
+
+// LoginActivity
+class LoginActivity: Activity() {
+    @Inject lateinit var loginViewModel: LoginViewModel
+    ...
+}
+
+// LoginViewModel
+class LoginViewModel(
+    @Inject private val userRepository: UserRepository
+) { ... }
+```
+
+
+
+### @Module Annotation
+
+```kotlin
+@Module
+@InstallIn(ApplicationComponent::class)
+abstract class DataModule {
+    @Provides
+    fun retrofit(): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://example.com")
+            .build()
+            .create(LoginService::class.java)
+    }
+  
+    @Binds
+    abstract fun userLocalDataSoruce(dataSource: UserLocalDataSource): DataSource
+  
+    @Binds
+    abstract fun userRemoteDataSoruce(dataSource: UserRemoteDataSource): DataSource
+}
+```
+
+
+
+### Hilt Application Class
+
+```kotlin
+@HiltAndroidApp
+class MyApplication : Application() { ... }
+```
+
+
+
+### Hilt Android Classes
+
+```kotlin
+@AndroidEntryPoint
+class LoginActivity: Activity() {
+    @Inject lateinit var loginViewModel: LoginViewModel
+    ...
+}
+```
+
+
+
+### Using Scopes
+
+```kotlin
+@Singleton
+class UserRepository @Inject constructor(
+    private val localDataSource: DataSource,
+    private val remoteDataSource: DataSource
+) { ... }
+```
+
+```kotlin
+@ActivityScoped
+class LoginViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) { ... }
+```
+
+
+
+### @ApplicationContext Qualifier
+
+```kotlin
+// UserLocalDataSource
+class UserLocalDataSource @Inject constructor(
+    @ApplicationContext private val context: Context
+) : DataSource { ... }
+```
+
+
+
+### @Qualifier Annotation
+
+```kotlin
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class UserLocalDataSource
+
+@Retention(AnnotationRetention.BINARY)
+@Qualifier
+annotation class UserRemoteDataSource
+```
+
+```kotlin
+@Module
+@InstallIn(ApplicationComponent::class)
+abstract class DataModule {  
+    ...
+  
+    @UserLocalDataSource
+    @Binds
+    abstract fun userLocalDataSoruce(dataSource: UserLocalDataSource): DataSource
+  
+    @UserRemoteDataSource
+    @Binds
+    abstract fun userRemoteDataSoruce(dataSource: UserRemoteDataSource): DataSource
+}
+```
+
+```kotlin
+@Singleton
+class UserRepository @Inject constructor(
+    @UserLocalDataSource private val localDataSource: DataSource,
+    @UserRemoteDataSource private val remoteDataSource: DataSource
+) { ... }
+```
+

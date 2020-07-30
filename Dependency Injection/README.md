@@ -58,14 +58,25 @@ fun main(args: Array) {
 ![application_graph](./image/application_graph.png)
 
 ```kotlin
+// UserRepository
 class UserRepository(
     private val localDataSource: UserLocalDataSource,
     private val remoteDataSource: UserRemoteDataSource
 ) { ... }
 
-class UserLocalDataSource { ... }
+// UserLocalDataSource
+class UserLocalDataSource(
+    private val context: Context
+) : DataSource { ... }
+
+// UserRemoteDataSource
 class UserRemoteDataSource(
     private val loginService: LoginRetrofitService
+) : DataSource { ... }
+
+// LoginViewModel
+class LoginViewModel(
+    private val userRepository: UserRepository
 ) { ... }
 ```
 
@@ -83,7 +94,7 @@ class LoginActivity: Activity() {
             .create(LoginService::class.java)
 
         val remoteDataSource = UserRemoteDataSource(retrofit)
-        val localDataSource = UserLocalDataSource()
+        val localDataSource = UserLocalDataSource(applicationContext)
 
         val userRepository = UserRepository(localDataSource, remoteDataSource)
 
@@ -109,14 +120,16 @@ class LoginViewModelFactory(private val userRepository: UserRepository) : Factor
 ```
 
 ```kotlin
-class AppContainer {
+class AppContainer(
+    private val context: Context
+) {
     private val retrofit = Retrofit.Builder()
                             .baseUrl("https://example.com")
                             .build()
                             .create(LoginService::class.java)
 
     private val remoteDataSource = UserRemoteDataSource(retrofit)
-    private val localDataSource = UserLocalDataSource()
+    private val localDataSource = UserLocalDataSource(context)
 
     val userRepository = UserRepository(localDataSource, remoteDataSource)
     val loginViewModelFactory = LoginViewModelFactory(userRepository)
@@ -125,7 +138,7 @@ class AppContainer {
 
 ```kotlin
 class MyApplication : Application() {
-    val appContainer = AppContainer()
+    val appContainer = AppContainer(applicationContext)
 }    
 ```
 
