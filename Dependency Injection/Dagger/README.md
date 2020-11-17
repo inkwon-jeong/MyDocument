@@ -730,3 +730,169 @@ class TermsAndConditionsFragment : Fragment() {
 
 
 
+## Dagger로 ViewModel 생성
+
+- 뷰모델에 파라미터가 있는 경우, ViewModelProvider.Factory가 필요하다
+- 각 뷰모델마다 팩토리를 생성하여 DI를 할 수 있지만, Map을 이용하여 모든 뷰모델에 대한 팩토리를 자동으로 생성할 수 있다
+- @MapKey 주석을 지정한 annotation을 생성하고, 파라미터에 key로 정할 객체를 지정한다
+- 뷰모델을 생성하는 @Binds 함수에 @IntoMap, @ViewModelKey 주석을 지정한다
+- @IntoMap은 Map<K, Provider<V>>을 반환하게 하는 annotation이다
+
+```kotlin
+class MyViewModelFactory @Inject constructor(
+    private val creators: @JvmSuppressWildcards Map<Class<out ViewModel>, Provider<ViewModel>>
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        var creator: Provider<out ViewModel>? = creators[modelClass]
+        if (creator == null) {
+            for ((key, value) in creators) {
+                if (modelClass.isAssignableFrom(key)) {
+                    creator = value
+                    break
+                }
+            }
+        }
+        if (creator == null) {
+            throw IllegalArgumentException("Unknown model class: $modelClass")
+        }
+        try {
+            @Suppress("UNCHECKED_CAST")
+            return creator.get() as T
+        } catch (e: Exception) {
+            throw RuntimeException(e)
+        }
+    }
+}
+
+@Module
+internal abstract class ViewModelModule {
+    @Binds
+    internal abstract fun bindViewModelFactory(
+        factory: MyViewModelFactory
+    ): ViewModelProvider.Factory
+}
+
+@Target(
+    AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER
+)
+@Retention(AnnotationRetention.RUNTIME)
+@MapKey
+annotation class ViewModelKey(val value: KClass<out ViewModel>)
+
+@Module
+abstract class MyModule {
+    @Binds
+    @IntoMap
+    @ViewModelKey(MyViewModel::class)
+    abstract fun bindViewModel(viewModel: MyViewModel): ViewModel
+}
+```
+
+- ViewModelProvider.Factory 타입의 변수에 @Inject 주석을 지정한다
+- **by viewModels** 프로퍼티 위임을 통해 뷰모델을 생성한다
+
+```kotlin
+class MyActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var viewModelFactory: ViewModelProvider.Factory
+    private val myViewModel by viewModels<MyViewModel> { viewModelFactory }
+    ...
+}
+```
+
+```kotlin
+class MyFragment : Fragment() {
+    @Inject
+    lateinit var viewModelFactory: ViewModelProvider.Factory
+    private val myViewModel by viewModels<MyViewModel> { viewModelFactory }
+    ...
+}
+```
+
+
+
+## AssistedInject
+
+- Dagger는 Annotation(@Inject, @Module, @Component 등)을 통해 정적으로 DI 그래프를 생성하는 라이브러리이다
+- 하지만 개발을 하다보면, 런타임 파라미터를 필요로 하는 객체를 생성해야 할 때가 있다
+- 동적으로 dependency를 주입할 수 있게 해주는 것이 **AssistedInject**이다
+
+### AssistedInject로 ViewModel 생성
+
+- Runtime 변수가 필요한 뷰모델에 @Inject -> @AssistedInject 주석을 지정한다
+- Runtime 변수에 @Assisted 주석을 지정한다
+- 뷰모델 내부에 @AssistedInject.Factory 주석을 지정한 인터페이스를 만든다
+- ViewModelProvider.Factory를 반환하는 함수를 companion object 내에 만든다
+- ViewModelProvider.Factory는 AssistedInjectFactory를 가지고 뷰모델을 생성한다
+
+```kotlin
+class MyViewModel @AssistedInject constructor(
+    @Assisted val runtimeVariable: RuntimeVariable,
+    val compileTimeVariable: CompileTimeVariale
+) {
+    @AssistedInject.Factory
+    interface AssistedFactory {
+        fun create(runtimeVariable: RuntimeVariable): MyViewModel
+    }
+
+    companion object {
+        fun getViewModelFactory(factory: AssistedFactory, runtimeVariable: RuntimeVariable) =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+                    return factory.create(runtimeVariable) as T
+                }
+            }
+    }
+    ...
+}
+```
+
+
+
+- 모듈에 @AssistedModule 주석을 지정한다
+- 모듈에 @Module 주석을 지정하고, **AssistedInject_<your_module_name>::class**를 추가한다
+- AssistedModule 하나만 있으면, 다른 assisted inject가 필요한 객체를 생성할 수 있다
+
+```kotlin
+@AssistedModule
+@Module(includes = [AssistedInject_MyModule::class])
+class MyModule {
+    ...
+}
+
+@Component(modules = [MyModule::class])
+interface MyComponent {
+    ...
+}
+```
+
+
+
+- 뷰모델 안에 만든 AssistedInjectFactory 타입의 변수를 선언하고 @Inject 주석을 지정한다
+- 뷰모델의 companion object 안에 만든 함수 파라미터에 AssistedInjectFactory와 Runtime 변수를 넣어 
+  ViewModelProvider.Factory를 생성한다
+- **by viewModels** 프로퍼티 위임을 통해 뷰모델을 생성한다
+- 프래그먼트가 액티비티의 뷰모델을 공유하려면 **by activityViewModels** 프로퍼티 위임을 통해 뷰모델을 생성하면 된다
+
+```kotlin
+class MyActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var assistedViewModelFactory: MyViewModel.Factory
+    private val myViewModel by viewModels<MyViewModel> {
+        val runtimeVariable = RuntimeVariable()
+        MyViewModel.getViewModelFactory(assistedViewModelFactory, runtimeVariable)
+    }
+    ...
+}
+```
+
+```kotlin
+class MyFragment : Fragment() {
+    private val myViewModel by activityViewModels<MyViewModel>()
+    ...
+}
+```
+
