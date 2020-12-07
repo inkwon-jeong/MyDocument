@@ -379,10 +379,10 @@ fun getRealmInstance(realmConfiguration: RealmConfiguration) =
 
         Logger.d(
             "localCount: $localCount, " +
-                    "globalCount: $globalCount, " +
-                    "thread: $threadId, " +
-                    "realmFileName: ${realmFileName}, " +
-                    "realm: ${hashMapOfRealm[key]}"
+            "globalCount: $globalCount, " +
+            "thread: $threadId, " +
+            "realmFileName: ${realmFileName}, " +
+            "realm: ${hashMapOfRealm[key]}"
         )
 
         hashMapOfRealm.getOrPut(
