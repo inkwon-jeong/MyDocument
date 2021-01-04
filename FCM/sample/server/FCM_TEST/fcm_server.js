@@ -10,7 +10,7 @@ admin.initializeApp({
 
 // File
 const fs = require('fs')
-const fileName = 'FCM_TEST/token.txt'
+const fileName = 'token.txt'
 
 function openFile(flag, block) {
   console.log('open file');
