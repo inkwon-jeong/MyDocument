@@ -56,7 +56,7 @@ https://firebase.google.com/docs/cloud-messaging/concept-options?authuser=0
     "notification":{
       "title":"Portugal vs. Denmark",
       "body":"great match!"
-    }
+    },
     "data":{
       "Nick" : "Mario",
       "body" : "great match!",
@@ -529,9 +529,3 @@ var admin = require('firebase-admin');
     ...
   }
   ```
-
-  
-
-  
-
-  
